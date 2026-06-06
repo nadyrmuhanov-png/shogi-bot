@@ -478,8 +478,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text = f"*{piece['emoji']} {piece['name']}*\n*Русское название: {piece['ru_name']}*\n\n{piece['description']}"
             image_url = piece.get("image")
             if image_url:
+                # Обновляем старое сообщение на заглушку и отправляем фото
                 try:
-                    await query.message.delete()
+                    await query.edit_message_text(
+                        f"*{piece['emoji']} {piece['ru_name']}*",
+                        parse_mode="Markdown"
+                    )
                 except Exception:
                     pass
                 await query.message.chat.send_photo(

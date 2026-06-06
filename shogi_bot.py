@@ -86,6 +86,7 @@ PIECES = {
         "name": "Osho / Gyokusho (王将/玉将)",
         "ru_name": "Король",
         "emoji": "♔",
+        "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Shogi_oushou.svg/200px-Shogi_oushou.svg.png",
         "description": (
             "Самая главная фигура в сёги — Король.\n\n"
             "♟ Ход: на одну клетку в любом направлении (8 вариантов).\n"
@@ -100,6 +101,7 @@ PIECES = {
         "name": "Hisha (飛車)",
         "ru_name": "Ладья",
         "emoji": "♜",
+        "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Shogi_hisha.svg/200px-Shogi_hisha.svg.png",
         "description": (
             "Hisha (飛車) — Ладья, одна из сильнейших фигур.\n\n"
             "♟ Ход: любое количество клеток по горизонтали или вертикали.\n"
@@ -112,6 +114,7 @@ PIECES = {
         "name": "Kakugyo (角行)",
         "ru_name": "Слон",
         "emoji": "♗",
+        "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/Shogi_kakugyou.svg/200px-Shogi_kakugyou.svg.png",
         "description": (
             "Kakugyo (角行) — Слон.\n\n"
             "♟ Ход: любое количество клеток по диагонали.\n"
@@ -124,6 +127,7 @@ PIECES = {
         "name": "Kinsho (金将)",
         "ru_name": "Золотой генерал",
         "emoji": "🥇",
+        "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/Shogi_kinshou.svg/200px-Shogi_kinshou.svg.png",
         "description": (
             "Kinsho (金将) — Золотой генерал.\n\n"
             "♟ Ход: одна клетка — вперёд, назад, влево, вправо, "
@@ -137,6 +141,7 @@ PIECES = {
         "name": "Ginsho (銀将)",
         "ru_name": "Серебряный генерал",
         "emoji": "🥈",
+        "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/Shogi_ginshou.svg/200px-Shogi_ginshou.svg.png",
         "description": (
             "Ginsho (銀将) — Серебряный генерал.\n\n"
             "♟ Ход: одна клетка — вперёд, или по диагонали в любую сторону (5 направлений).\n"
@@ -149,6 +154,7 @@ PIECES = {
         "name": "Keima (桂馬)",
         "ru_name": "Конь",
         "emoji": "♞",
+        "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Shogi_keima.svg/200px-Shogi_keima.svg.png",
         "description": (
             "Keima (桂馬) — Конь.\n\n"
             "♟ Ход: прыжок — на две клетки вперёд и одну в сторону "
@@ -162,6 +168,7 @@ PIECES = {
         "name": "Kyosha (香車)",
         "ru_name": "Копьеносец",
         "emoji": "🏹",
+        "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/Shogi_kyousha.svg/200px-Shogi_kyousha.svg.png",
         "description": (
             "Kyosha (香車) — Копьеносец.\n\n"
             "♟ Ход: любое количество клеток только вперёд (как ладья, но только вперёд).\n"
@@ -174,6 +181,7 @@ PIECES = {
         "name": "Fuhyo (歩兵)",
         "ru_name": "Пешка",
         "emoji": "♟",
+        "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/Shogi_fuhyou.svg/200px-Shogi_fuhyou.svg.png",
         "description": (
             "Fuhyo (歩兵) — Пешка.\n\n"
             "♟ Ход: одна клетка вперёд.\n"
@@ -445,18 +453,44 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
 
     elif data == "menu_pieces":
-        await query.edit_message_text(
-            "📖 *Фигуры сёги*\n\nВыбери фигуру, чтобы узнать о ней подробнее:",
-            parse_mode="Markdown",
-            reply_markup=pieces_menu_keyboard()
-        )
+        context.user_data["last_is_photo"] = False
+        try:
+            await query.edit_message_text(
+                "📖 *Фигуры сёги*\n\nВыбери фигуру, чтобы узнать о ней подробнее:",
+                parse_mode="Markdown",
+                reply_markup=pieces_menu_keyboard()
+            )
+        except Exception:
+            try:
+                await query.message.delete()
+            except Exception:
+                pass
+            await query.message.chat.send_message(
+                "📖 *Фигуры сёги*\n\nВыбери фигуру, чтобы узнать о ней подробнее:",
+                parse_mode="Markdown",
+                reply_markup=pieces_menu_keyboard()
+            )
 
     elif data.startswith("piece_"):
         key = data.replace("piece_", "")
         piece = PIECES.get(key)
         if piece:
             text = f"*{piece['emoji']} {piece['name']}*\n*Русское название: {piece['ru_name']}*\n\n{piece['description']}"
-            await query.edit_message_text(text, parse_mode="Markdown", reply_markup=back_to_main())
+            image_url = piece.get("image")
+            if image_url:
+                try:
+                    await query.message.delete()
+                except Exception:
+                    pass
+                await query.message.chat.send_photo(
+                    photo=image_url,
+                    caption=text,
+                    parse_mode="Markdown",
+                    reply_markup=back_to_main()
+                )
+                context.user_data["last_is_photo"] = True
+            else:
+                await query.edit_message_text(text, parse_mode="Markdown", reply_markup=back_to_main())
 
     elif data == "menu_quiz":
         context.user_data["quiz_index"] = 0

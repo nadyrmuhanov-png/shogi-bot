@@ -1,4 +1,6 @@
 import logging
+import io
+from PIL import Image, ImageDraw, ImageFont
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler,
@@ -14,10 +16,74 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# ==================== ГЕНЕРАЦИЯ ДОСКИ ====================
+def draw_shogi_board(board, cols, rows, title=""):
+    """
+    board — словарь {(col, row): ("символ", "white"/"black")}
+    cols, rows — размер видимой части доски
+    """
+    CELL = 100
+    PADDING = 55
+    HEADER = 55 if title else 15
+
+    width = CELL * cols + PADDING * 2
+    height = CELL * rows + PADDING * 2 + HEADER
+
+    img = Image.new("RGB", (width, height), color=(255, 248, 220))
+    draw = ImageDraw.Draw(img)
+
+    try:
+        font_piece = ImageFont.truetype("arial.ttf", 30)
+        font_label = ImageFont.truetype("arial.ttf", 20)
+        font_title = ImageFont.truetype("arial.ttf", 24)
+    except Exception:
+        font_piece = ImageFont.load_default()
+        font_label = ImageFont.load_default()
+        font_title = ImageFont.load_default()
+
+    if title:
+        draw.text((width // 2, 28), title, fill=(80, 40, 0), font=font_title, anchor="mm")
+
+    col_labels = ["а", "б", "в", "г", "д", "е", "ж", "з", "и"]
+    for c in range(cols):
+        x = PADDING + c * CELL + CELL // 2
+        y = HEADER + PADDING - 25
+        draw.text((x, y), col_labels[c], fill=(100, 60, 0), font=font_label, anchor="mm")
+
+    for r in range(rows):
+        x = PADDING - 25
+        y = HEADER + PADDING + r * CELL + CELL // 2
+        draw.text((x, y), str(r + 1), fill=(100, 60, 0), font=font_label, anchor="mm")
+
+    for r in range(rows):
+        for c in range(cols):
+            x0 = PADDING + c * CELL
+            y0 = HEADER + PADDING + r * CELL
+            x1 = x0 + CELL
+            y1 = y0 + CELL
+            cell_color = (245, 222, 179) if (r + c) % 2 == 0 else (232, 208, 160)
+            draw.rectangle([x0, y0, x1, y1], fill=cell_color, outline=(139, 90, 43), width=2)
+
+            piece = board.get((c, r))
+            if piece:
+                symbol, side = piece
+                cx = x0 + CELL // 2
+                cy = y0 + CELL // 2
+                circle_color = (255, 255, 255) if side == "white" else (50, 50, 50)
+                draw.ellipse([cx - 36, cy - 36, cx + 36, cy + 36],
+                             fill=circle_color, outline=(100, 60, 0), width=2)
+                text_color = (30, 30, 30) if side == "white" else (220, 220, 220)
+                draw.text((cx, cy), symbol, fill=text_color, font=font_piece, anchor="mm")
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return buf
+
 # ==================== ДАННЫЕ О ФИГУРАХ ====================
 PIECES = {
     "ОУ": {
-        "name": "Ōshō / Gyokushō (王将/玉将)",
+        "name": "Osho / Gyokusho (王将/玉将)",
         "ru_name": "Король",
         "emoji": "♔",
         "description": (
@@ -25,8 +91,8 @@ PIECES = {
             "♟ Ход: на одну клетку в любом направлении (8 вариантов).\n"
             "🎯 Цель игры: поставить мат королю противника.\n"
             "⚠️ Особенность: не может ходить под шах.\n\n"
-            "📜 Интересно: у старшего игрока фигура называется «Ōshō» (王将), "
-            "у младшего — «Gyokushō» (玉将). По легенде, иероглиф с точкой (玉) "
+            "📜 Интересно: у старшего игрока фигура называется «Osho» (王将), "
+            "у младшего — «Gyokusho» (玉将). По легенде, иероглиф с точкой (玉) "
             "получал более слабый игрок."
         ),
     },
@@ -37,29 +103,29 @@ PIECES = {
         "description": (
             "Hisha (飛車) — Ладья, одна из сильнейших фигур.\n\n"
             "♟ Ход: любое количество клеток по горизонтали или вертикали.\n"
-            "⭐ После превращения: становится «Ryūō» (龍王) — Король-дракон. "
+            "⭐ После превращения: становится «Ryuo» (龍王) — Король-дракон. "
             "Добавляется ход на одну клетку по диагонали.\n\n"
             "💡 Стратегия: ладью лучше держать в центре или на открытых вертикалях."
         ),
     },
     "КАКУ": {
-        "name": "Kakugyō (角行)",
+        "name": "Kakugyo (角行)",
         "ru_name": "Слон",
         "emoji": "♗",
         "description": (
-            "Kakugyō (角行) — Слон.\n\n"
+            "Kakugyo (角行) — Слон.\n\n"
             "♟ Ход: любое количество клеток по диагонали.\n"
-            "⭐ После превращения: становится «Ryūma» (龍馬) — Конь-дракон. "
+            "⭐ После превращения: становится «Ryuma» (龍馬) — Конь-дракон. "
             "Добавляется ход на одну клетку по горизонтали/вертикали.\n\n"
             "💡 Слон контролирует длинные диагонали и опасен в миттельшпиле."
         ),
     },
     "КИН": {
-        "name": "Kinshō (金将)",
+        "name": "Kinsho (金将)",
         "ru_name": "Золотой генерал",
         "emoji": "🥇",
         "description": (
-            "Kinshō (金将) — Золотой генерал.\n\n"
+            "Kinsho (金将) — Золотой генерал.\n\n"
             "♟ Ход: одна клетка — вперёд, назад, влево, вправо, "
             "или вперёд по диагонали (6 направлений).\n"
             "⚠️ Не превращается.\n\n"
@@ -68,11 +134,11 @@ PIECES = {
         ),
     },
     "ГИН": {
-        "name": "Ginshō (銀将)",
+        "name": "Ginsho (銀将)",
         "ru_name": "Серебряный генерал",
         "emoji": "🥈",
         "description": (
-            "Ginshō (銀将) — Серебряный генерал.\n\n"
+            "Ginsho (銀将) — Серебряный генерал.\n\n"
             "♟ Ход: одна клетка — вперёд, или по диагонали в любую сторону (5 направлений).\n"
             "⭐ После превращения: ходит как Золотой генерал.\n\n"
             "💡 Серебряный генерал гибок в атаке. Часто продвигается вперёд "
@@ -93,11 +159,11 @@ PIECES = {
         ),
     },
     "КЁ": {
-        "name": "Kyōsha (香車)",
+        "name": "Kyosha (香車)",
         "ru_name": "Копьеносец",
         "emoji": "🏹",
         "description": (
-            "Kyōsha (香車) — Копьеносец.\n\n"
+            "Kyosha (香車) — Копьеносец.\n\n"
             "♟ Ход: любое количество клеток только вперёд (как ладья, но только вперёд).\n"
             "⭐ После превращения: ходит как Золотой генерал.\n\n"
             "💡 Копьеносец стоит в углах доски в начале игры. "
@@ -105,11 +171,11 @@ PIECES = {
         ),
     },
     "ФУ": {
-        "name": "Fuhyō (歩兵)",
+        "name": "Fuhyo (歩兵)",
         "ru_name": "Пешка",
         "emoji": "♟",
         "description": (
-            "Fuhyō (歩兵) — Пешка.\n\n"
+            "Fuhyo (歩兵) — Пешка.\n\n"
             "♟ Ход: одна клетка вперёд.\n"
             "⭐ После превращения: становится «Tokin» (と金) — ходит как Золотой генерал.\n\n"
             "⚠️ Нельзя ставить две пешки на одной вертикали.\n"
@@ -124,18 +190,18 @@ PIECES = {
 QUIZZES = [
     {
         "question": "Какая фигура в сёги ходит только вперёд на любое количество клеток?",
-        "options": ["Ладья (Hisha)", "Копьеносец (Kyōsha)", "Конь (Keima)", "Пешка (Fuhyō)"],
+        "options": ["Ладья (Hisha)", "Копьеносец (Kyosha)", "Конь (Keima)", "Пешка (Fuhyo)"],
         "answer": 1,
-        "explanation": "Копьеносец (Kyōsha) ходит только вперёд на любое количество клеток — как ладья, но только в одном направлении."
+        "explanation": "Копьеносец (Kyosha) ходит только вперёд на любое количество клеток — как ладья, но только в одном направлении."
     },
     {
         "question": "Как называется превращённая Ладья (Hisha)?",
-        "options": ["Ryūma (龍馬)", "Tokin (と金)", "Ryūō (龍王)", "Narikin"],
+        "options": ["Ryuma (龍馬)", "Tokin (と金)", "Ryuo (龍王)", "Narikin"],
         "answer": 2,
-        "explanation": "Превращённая Ладья называется Ryūō (龍王) — Король-дракон. Она добавляет ход по диагонали."
+        "explanation": "Превращённая Ладья называется Ryuo (龍王) — Король-дракон. Она добавляет ход по диагонали."
     },
     {
-        "question": "Сколько пешек (Fuhyō) у каждого игрока в начале игры?",
+        "question": "Сколько пешек (Fuhyo) у каждого игрока в начале игры?",
         "options": ["7", "8", "9", "10"],
         "answer": 2,
         "explanation": "У каждого игрока 9 пешек — это самая многочисленная фигура в сёги."
@@ -144,7 +210,7 @@ QUIZZES = [
         "question": "Какая фигура в сёги НЕ может превращаться?",
         "options": ["Серебряный генерал", "Золотой генерал", "Конь", "Копьеносец"],
         "answer": 1,
-        "explanation": "Золотой генерал (Kinshō) — единственная фигура кроме Короля, которая не превращается."
+        "explanation": "Золотой генерал (Kinsho) — единственная фигура кроме Короля, которая не превращается."
     },
     {
         "question": "Что происходит с захваченными фигурами в сёги?",
@@ -155,7 +221,7 @@ QUIZZES = [
             "Противник может их использовать"
         ],
         "answer": 1,
-        "explanation": "Главная особенность сёги: захваченные фигуры переходят к захватившему и могут быть поставлены на доску как свои — это называется «сброс» (打つ)."
+        "explanation": "Главная особенность сёги: захваченные фигуры переходят к захватившему и могут быть поставлены на доску как свои — это называется «сброс»."
     },
     {
         "question": "Как ходит Конь (Keima) в сёги?",
@@ -169,7 +235,7 @@ QUIZZES = [
         "explanation": "Конь в сёги прыгает только вперёд: 2 клетки вперёд + 1 в сторону. В отличие от шахматного коня, он не может ходить назад или в стороны."
     },
     {
-        "question": "Что такое «Tokin» (と金)?",
+        "question": "Что такое «Tokin»?",
         "options": [
             "Превращённый Конь",
             "Превращённая Пешка",
@@ -190,18 +256,16 @@ QUIZZES = [
 # ==================== ЗАДАЧИ ====================
 PUZZLES = [
     {
+        "title": "Задача 1: Запрещённый мат",
         "description": (
-            "♟ Задача 1: Ты играешь за белых.\n\n"
-            "Доска (упрощённо):\n"
-            "```\n"
-            "  а  б  в\n"
-            "1 .  ♔  .\n"
-            "2 .  ♟  .\n"
-            "3 .  .  .\n"
-            "```\n"
             "Пешка белых стоит на б2, Король чёрных на б1.\n\n"
-            "❓ Что произойдёт если пешка походит на б1?"
+            "❓ Что произойдёт если пешка сбросом встанет на б1?"
         ),
+        "board": {
+            (1, 0): ("王", "black"),   # Король чёрных на б1
+            (1, 1): ("歩", "white"),   # Пешка белых на б2
+        },
+        "cols": 3, "rows": 3,
         "options": [
             "Пешка съест Короля — победа!",
             "Это запрещённый ход (утифу) — мат пешкой запрещён",
@@ -210,46 +274,55 @@ PUZZLES = [
         ],
         "answer": 1,
         "explanation": (
-            "✅ Правильно! Это «утифу» (打ち歩詰め) — запрещённый мат пешкой.\n"
+            "Правильно! Это «утифу» — запрещённый мат пешкой.\n"
             "В сёги нельзя ставить пешку сбросом так, чтобы это был немедленный мат. "
             "Это одно из важнейших особых правил!"
         )
     },
     {
+        "title": "Задача 2: Защита сбросом",
         "description": (
-            "♟ Задача 2: Твоя Ладья стоит на е5.\n\n"
-            "Противник атакует твоего Короля по вертикали «е».\n"
-            "У тебя есть захваченный Золотой генерал.\n\n"
+            "Противник атакует твоего Короля (белые, б3) по вертикали «б».\n"
+            "Ладья чёрных стоит на б1. У тебя есть захваченный Золотой генерал.\n\n"
             "❓ Как лучше защититься?"
         ),
+        "board": {
+            (1, 0): ("飛", "black"),   # Ладья чёрных на б1
+            (1, 2): ("王", "white"),   # Король белых на б3
+        },
+        "cols": 3, "rows": 3,
         "options": [
             "Убежать Королём в сторону",
-            "Поставить (сбросить) Золотого генерала между Королём и атакой",
+            "Сбросить Золотого генерала между Королём и ладьёй (б2)",
             "Атаковать чужого Короля",
-            "Ладьёй блокировать угрозу"
+            "Ничего не делать"
         ],
         "answer": 1,
         "explanation": (
-            "✅ Верно! Сброс захваченного Золотого генерала как блок — "
+            "Верно! Сброс Золотого генерала на б2 блокирует атаку ладьи — "
             "классическая защитная техника в сёги.\n"
-            "Это и есть главная уникальность игры: захваченные фигуры "
-            "можно использовать для защиты в нужный момент!"
+            "Захваченные фигуры можно использовать для защиты в нужный момент!"
         )
     },
     {
+        "title": "Задача 3: Превращение пешки",
         "description": (
-            "♟ Задача 3: Твоя пешка дошла до последнего ряда противника.\n\n"
-            "❓ Что ты должен сделать?"
+            "Пешка белых дошла до последнего (1-го) ряда — позиция б1.\n\n"
+            "❓ Что должно произойти?"
         ),
+        "board": {
+            (1, 0): ("歩", "white"),   # Пешка белых на б1 (последний ряд)
+        },
+        "cols": 3, "rows": 3,
         "options": [
             "Пешка остаётся пешкой — ничего не происходит",
-            "Пешка обязана превратиться (нет хода вперёд)",
+            "Пешка обязана превратиться в Tokin",
             "Можно выбрать: превратить или нет",
             "Пешка убирается с доски"
         ],
         "answer": 1,
         "explanation": (
-            "✅ Правильно! Пешка на последнем ряду обязана превратиться, "
+            "Правильно! Пешка на последнем ряду обязана превратиться, "
             "так как у неё нет допустимого хода вперёд.\n"
             "Она превращается в Tokin (と金) и начинает ходить как Золотой генерал."
         )
@@ -326,19 +399,13 @@ async def test_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = f"🧠 *Вопрос 1/{len(QUIZZES)}*\n\n{q['question']}"
     keyboard = []
     for i, option in enumerate(q["options"]):
-        keyboard.append([InlineKeyboardButton(option, callback_data=f"quiz_{i}")])
+        keyboard.append([InlineKeyboardButton(option, callback_data=f"quiz_ans_{i}")])
     keyboard.append([InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")])
     await update.message.reply_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
 
 async def puzzle_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["puzzle_index"] = 0
-    p = PUZZLES[0]
-    text = f"♟ *Задача 1/{len(PUZZLES)}*\n\n{p['description']}"
-    keyboard = []
-    for i, option in enumerate(p["options"]):
-        keyboard.append([InlineKeyboardButton(option, callback_data=f"puzzle_{i}")])
-    keyboard.append([InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")])
-    await update.message.reply_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
+    await send_puzzle_new_message(update.message, context)
 
 # ==================== ОБРАБОТЧИК КНОПОК ====================
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -346,16 +413,37 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     data = query.data
 
-    # Главное меню
     if data == "menu_main":
+        is_photo = context.user_data.get("last_is_photo", False)
         context.user_data.clear()
-        await query.edit_message_text(
-            "🎌 *Главное меню*\n\nВыбери раздел:",
-            parse_mode="Markdown",
-            reply_markup=main_menu_keyboard()
-        )
+        if is_photo:
+            try:
+                await query.message.delete()
+            except Exception:
+                pass
+            await query.message.chat.send_message(
+                "🎌 *Главное меню*\n\nВыбери раздел:",
+                parse_mode="Markdown",
+                reply_markup=main_menu_keyboard()
+            )
+        else:
+            try:
+                await query.edit_message_text(
+                    "🎌 *Главное меню*\n\nВыбери раздел:",
+                    parse_mode="Markdown",
+                    reply_markup=main_menu_keyboard()
+                )
+            except Exception:
+                try:
+                    await query.message.delete()
+                except Exception:
+                    pass
+                await query.message.chat.send_message(
+                    "🎌 *Главное меню*\n\nВыбери раздел:",
+                    parse_mode="Markdown",
+                    reply_markup=main_menu_keyboard()
+                )
 
-    # Список фигур
     elif data == "menu_pieces":
         await query.edit_message_text(
             "📖 *Фигуры сёги*\n\nВыбери фигуру, чтобы узнать о ней подробнее:",
@@ -363,7 +451,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=pieces_menu_keyboard()
         )
 
-    # Конкретная фигура
     elif data.startswith("piece_"):
         key = data.replace("piece_", "")
         piece = PIECES.get(key)
@@ -371,13 +458,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text = f"*{piece['emoji']} {piece['name']}*\n*Русское название: {piece['ru_name']}*\n\n{piece['description']}"
             await query.edit_message_text(text, parse_mode="Markdown", reply_markup=back_to_main())
 
-    # Тест — начало
     elif data == "menu_quiz":
         context.user_data["quiz_index"] = 0
         context.user_data["quiz_score"] = 0
         await send_quiz_message(query, context)
 
-    # Тест — ответ
     elif data.startswith("quiz_ans_"):
         chosen = int(data.split("_")[2])
         q_index = context.user_data.get("quiz_index", 0)
@@ -428,15 +513,16 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["quiz_index"] = max(0, context.user_data.get("quiz_index", 1) - 1)
         await send_quiz_message(query, context)
 
-    # Задачи — начало
     elif data == "menu_puzzles":
         context.user_data["puzzle_index"] = 0
-        await send_puzzle_message(query, context)
+        await send_puzzle_edit(query, context)
 
-    # Задачи — ответ
     elif data.startswith("puzzle_ans_"):
         chosen = int(data.split("_")[2])
         p_index = context.user_data.get("puzzle_index", 0)
+        if p_index >= len(PUZZLES):
+            p_index = 0
+            context.user_data["puzzle_index"] = 0
         puzzle = PUZZLES[p_index]
         correct = puzzle["answer"]
 
@@ -464,16 +550,24 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")]
             ])
 
-        await query.edit_message_text(result_text, parse_mode="Markdown", reply_markup=keyboard)
+        # После фото редактируем подпись
+        try:
+            await query.edit_message_caption(caption=result_text, parse_mode="Markdown", reply_markup=keyboard)
+        except Exception:
+            try:
+                await query.edit_message_text(result_text, parse_mode="Markdown", reply_markup=keyboard)
+            except Exception:
+                await query.message.reply_text(result_text, parse_mode="Markdown", reply_markup=keyboard)
+        # Запоминаем что текущее сообщение — подпись к фото
+        context.user_data["last_is_photo"] = True
 
     elif data == "puzzle_next":
-        await send_puzzle_message(query, context)
+        await send_puzzle_edit(query, context)
 
     elif data == "puzzle_prev":
         context.user_data["puzzle_index"] = max(0, context.user_data.get("puzzle_index", 1) - 1)
-        await send_puzzle_message(query, context)
+        await send_puzzle_edit(query, context)
 
-    # Правила
     elif data == "menu_rules":
         rules_text = (
             "📜 *Основные правила Сёги*\n\n"
@@ -489,14 +583,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "• Нельзя ставить пешку на вертикаль, где уже есть своя пешка\n"
             "• Нельзя ставить пешку с немедленным матом (утифу)\n"
             "• Нельзя ставить фигуру туда, где у неё нет ходов\n\n"
-            "🏳️ *Ничья:* возможна при повторении позиции 4 раза (сённичитэ)."
+            "🏳️ *Ничья:* возможна при повторении позиции 4 раза."
         )
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("◀️ Назад", callback_data="menu_main")],
-        ])
-        await query.edit_message_text(rules_text, parse_mode="Markdown", reply_markup=keyboard)
+        await query.edit_message_text(rules_text, parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Назад", callback_data="menu_main")]]))
 
-    # О сёги
     elif data == "menu_about":
         about_text = (
             "ℹ️ *О сёги (将棋)*\n\n"
@@ -514,10 +605,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Главное отличие от шахмат — сброс захваченных фигур.\n"
             "Это делает партии более динамичными и сложными."
         )
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("◀️ Назад", callback_data="menu_main")],
-        ])
-        await query.edit_message_text(about_text, parse_mode="Markdown", reply_markup=keyboard)
+        await query.edit_message_text(about_text, parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Назад", callback_data="menu_main")]]))
 
 # ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
 async def send_quiz_message(query, context):
@@ -535,11 +624,17 @@ async def send_quiz_message(query, context):
     keyboard.append(nav_row)
     await query.edit_message_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
 
-async def send_puzzle_message(query, context):
+async def send_puzzle_edit(query, context):
+    """Отправляет задачу с картинкой доски (редактирует сообщение на текст + новое фото)"""
     p_index = context.user_data.get("puzzle_index", 0)
     puzzle = PUZZLES[p_index]
     total = len(PUZZLES)
-    text = f"♟ *Задача {p_index + 1}/{total}*\n\n{puzzle['description']}"
+
+    # Генерируем картинку доски
+    board_img = draw_shogi_board(
+        puzzle["board"], puzzle["cols"], puzzle["rows"], title=puzzle["title"]
+    )
+
     keyboard = []
     for i, option in enumerate(puzzle["options"]):
         keyboard.append([InlineKeyboardButton(option, callback_data=f"puzzle_ans_{i}")])
@@ -548,7 +643,40 @@ async def send_puzzle_message(query, context):
         nav_row.append(InlineKeyboardButton("◀️ Назад", callback_data="puzzle_prev"))
     nav_row.append(InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main"))
     keyboard.append(nav_row)
-    await query.edit_message_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
+    markup = InlineKeyboardMarkup(keyboard)
+
+    caption = f"♟ *Задача {p_index + 1}/{total}*\n\n{puzzle['description']}"
+
+    # Удаляем старое сообщение и отправляем новое с фото
+    try:
+        await query.message.delete()
+    except Exception:
+        pass
+    await query.message.chat.send_photo(
+        photo=board_img,
+        caption=caption,
+        parse_mode="Markdown",
+        reply_markup=markup
+    )
+
+async def send_puzzle_new_message(message, context):
+    """Отправляет первую задачу новым сообщением"""
+    p_index = context.user_data.get("puzzle_index", 0)
+    puzzle = PUZZLES[p_index]
+    total = len(PUZZLES)
+
+    board_img = draw_shogi_board(
+        puzzle["board"], puzzle["cols"], puzzle["rows"], title=puzzle["title"]
+    )
+
+    keyboard = []
+    for i, option in enumerate(puzzle["options"]):
+        keyboard.append([InlineKeyboardButton(option, callback_data=f"puzzle_ans_{i}")])
+    keyboard.append([InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")])
+    markup = InlineKeyboardMarkup(keyboard)
+
+    caption = f"♟ *Задача {p_index + 1}/{total}*\n\n{puzzle['description']}"
+    await message.reply_photo(photo=board_img, caption=caption, parse_mode="Markdown", reply_markup=markup)
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(

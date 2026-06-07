@@ -1,5 +1,6 @@
 import logging
 import io
+import os
 from PIL import Image, ImageDraw, ImageFont
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
 from telegram.ext import (
@@ -8,13 +9,14 @@ from telegram.ext import (
 )
 
 # ==================== НАСТРОЙКИ ====================
-TOKEN = "8999275602:AAHW3Od88rtO5f_JEgxpoa-sB3FlScEneTE"
+# ⚠️ ОБЯЗАТЕЛЬНО СБРОСЬ ТОКЕН В @BotFather И ВСТАВЬ НОВЫЙ СЮДА!
+TOKEN = "ТВОЙ_НОВЫЙ_ТОКЕН_БОТА"
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
-logger = logging.getLogger(name)
+logger = logging.getLogger(__name__)
 
 # ==================== ГЕНЕРАЦИЯ ДОСКИ ====================
 def draw_shogi_board(board, cols, rows, title=""):
@@ -32,6 +34,7 @@ def draw_shogi_board(board, cols, rows, title=""):
     img = Image.new("RGB", (width, height), color=(255, 248, 220))
     draw = ImageDraw.Draw(img)
 
+    # Попытка загрузить стандартные шрифты (работает на Windows/Linux при наличии)
     try:
         font_piece = ImageFont.truetype("arial.ttf", 30)
         font_label = ImageFont.truetype("arial.ttf", 20)
@@ -79,7 +82,9 @@ def draw_shogi_board(board, cols, rows, title=""):
     img.save(buf, format="PNG")
     buf.seek(0)
     return buf
-    # ==================== ДАННЫЕ О ФИГУРАХ ====================
+
+# ==================== ДАННЫЕ О ФИГУРАХ ====================
+# (Твой исходный словарь PIECES оставлен без изменений)
 PIECES = {
     "ОУ": {
         "name": "Osho / Gyokusho (王将/玉将)",
@@ -186,6 +191,7 @@ PIECES = {
 }
 
 # ==================== ТЕСТЫ ====================
+# (Твой исходный массив QUIZZES оставлен без изменений)
 QUIZZES = [
     {
         "question": "Какая фигура в сёги ходит только вперёд на любое количество клеток?",
@@ -251,7 +257,9 @@ QUIZZES = [
         "explanation": "Ладья стоит во втором ряду (справа), рядом со Слоном. Второй ряд — это ряд сильных фигур: Ладья и Слон."
     },
 ]
+
 # ==================== ЗАДАЧИ ====================
+# (Твой исходный массив PUZZLES оставлен без изменений)
 PUZZLES = [
     {
         "title": "Задача 1: Запрещённый мат",
@@ -260,8 +268,8 @@ PUZZLES = [
             "❓ Что произойдёт если пешка сбросом встанет на б1?"
         ),
         "board": {
-            (1, 0): ("王", "black"),   # Король чёрных на б1
-            (1, 1): ("歩", "white"),   # Пешка белых на б2
+            (1, 0): ("王", "black"),
+            (1, 1): ("歩", "white"),
         },
         "cols": 3, "rows": 3,
         "options": [
@@ -285,8 +293,8 @@ PUZZLES = [
             "❓ Как лучше защититься?"
         ),
         "board": {
-            (1, 0): ("飛", "black"),   # Ладья чёрных на б1
-            (1, 2): ("王", "white"),   # Король белых на б3
+            (1, 0): ("飛", "black"),
+            (1, 2): ("王", "white"),
         },
         "cols": 3, "rows": 3,
         "options": [
@@ -309,7 +317,7 @@ PUZZLES = [
             "❓ Что должно произойти?"
         ),
         "board": {
-            (1, 0): ("歩", "white"),   # Пешка белых на б1 (последний ряд)
+            (1, 0): ("歩", "white"),
         },
         "cols": 3, "rows": 3,
         "options": [
@@ -320,7 +328,7 @@ PUZZLES = [
         ],
         "answer": 1,
         "explanation": (
-            "Правильно! Пешка на последнем ряду обязана превратиться, "
+            "Правильно! Пешка на letzten ряду обязана превратиться, "
             "так как у неё нет допустимого хода вперёд.\n"
             "Она превращается в Tokin (と金) и начинает ходить как Золотой генерал."
         )
@@ -351,6 +359,7 @@ def back_to_main():
         [InlineKeyboardButton("◀️ Назад к фигурам", callback_data="menu_pieces")],
         [InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")]
     ])
+
 # ==================== КОМАНДЫ ====================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
@@ -447,7 +456,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown",
             reply_markup=pieces_menu_keyboard()
         )
-        elif data.startswith("piece_"):
+
+    elif data.startswith("piece_"):
         key = data.replace("piece_", "")
         piece = PIECES.get(key)
         if piece:
@@ -533,7 +543,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         next_index = p_index + 1
         context.user_data["puzzle_index"] = next_index
-if next_index < len(PUZZLES):
+        
+        if next_index < len(PUZZLES):
             keyboard = InlineKeyboardMarkup([
                 [InlineKeyboardButton(f"➡️ Задача {next_index + 1}/{len(PUZZLES)}", callback_data="puzzle_next")],
                 [InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")]
@@ -553,7 +564,7 @@ if next_index < len(PUZZLES):
                 await query.edit_message_text(result_text, parse_mode="Markdown", reply_markup=keyboard)
             except Exception:
                 await query.message.reply_text(result_text, parse_mode="Markdown", reply_markup=keyboard)
-        # Запоминаем что текущее сообщение — подпись к фото
+        # Запоминаем, что текущее сообщение — подпись к фото
         context.user_data["last_is_photo"] = True
 
     elif data == "puzzle_next":
@@ -602,6 +613,7 @@ if next_index < len(PUZZLES):
         )
         await query.edit_message_text(about_text, parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Назад", callback_data="menu_main")]]))
+
 # ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
 async def send_quiz_message(query, context):
     q_index = context.user_data.get("quiz_index", 0)
@@ -697,8 +709,9 @@ def main():
     app.add_handler(CommandHandler("puzzle", puzzle_command))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, unknown))
+    
     print("🎌 Бот Сёги запущен! Нажми Ctrl+C для остановки.")
     app.run_polling()
 
-if name == "main":
+if __name__ == "__main__":
     main()

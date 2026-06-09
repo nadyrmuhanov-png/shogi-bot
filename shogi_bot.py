@@ -16,7 +16,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ==================== ДАННЫЕ О ФИГУРАХ ====================
-# Файлы ищутся прямо в корне репозитория (рядом с shogi_bot.py)
 PIECES = {
     "ФУ": {
         "name": "Fuhyo (歩兵)",
@@ -113,7 +112,7 @@ PIECES = {
 # ==================== БАЗА ТЕСТОВ И ЗАДАЧ ====================
 QUIZZES = [
     {
-        "question": "Какая фигура в сёги ходит только вперёд на любое количество клеток?",
+        "question": "Какая figura в сёги ходит только вперёд на любое количество клеток?",
         "options": ["Ладья (Hisha)", "Копьеносец (Kyosha)", "Конь (Keima)", "Пешка (Fuhyo)"],
         "answer": 1,
         "explanation": "Копьеносец (Kyosha) бьет всю вертикаль строго перед собой."
@@ -123,18 +122,6 @@ QUIZZES = [
         "options": ["Ryuma (龍馬)", "Tokin (と金)", "Ryuo (龍王)", "Narikin"],
         "answer": 2,
         "explanation": "Превращённая Ладья называется Король-дракон или Ryuo (龍王)."
-    },
-    {
-        "question": "Какая из этих фигур НЕ может превратиться?",
-        "options": ["Серебряный генерал", "Золотой генерал", "Конь", "Пешка"],
-        "answer": 1,
-        "explanation": "Золотой генерал (Kinsho) и Король — единственные базовые фигуры, которые изначально не имеют перевёрнутой стороны."
-    },
-    {
-        "question": "Что такое «Утифу» (Uchifu)?",
-        "options": ["Запрет иметь две пешки на одной вертикали", "Запрет ставить мат сбросом пешки", "Ход пешкой назад", "Превращение пешки"],
-        "answer": 1,
-        "explanation": "Утифу — это правило, запрещающее ставить мат Королю соперника непосредственным сбросом пешки с руки."
     }
 ]
 
@@ -144,14 +131,7 @@ TASKS = [
         "description": "У вас на руке (в комидае) есть Золотой генерал (Кин). Король соперника зажат в углу на поле 1a. Куда эффективнее всего сбросить Золотого генерала, чтобы поставить чистый мат в 1 ход?",
         "options": ["Сбросить на 1b", "Сбросить на 2b", "Сбросить на 2a", "Пойти пешкой"],
         "answer": 0,
-        "explanation": "Сброс Золотого генерала на 1b прямо перед Королем соперника отрезает ему все пути к отступлению и ставит мат (если его некому съесть)."
-    },
-    {
-        "title": "Задача 2: Безопасный сброс пешки",
-        "description": "На вертикали 2 уже стоит ваша непривращенная пешка. Можете ли вы сбросить еще одну пешку на эту же вертикаль 2?",
-        "options": ["Да, без ограничений", "Да, если это ставит шах", "Нет, это правило Нифу (Две пешки)", "Нет, если соперник против"],
-        "answer": 2,
-        "explanation": "Правило Нифу (Nifu) строго запрещает иметь две свои непривращенные пешки на одной и той же вертикальной линии."
+        "explanation": "Сброс Золотого генерала на 1b прямо перед Королем соперника отрезает ему все пути к отступлению и ставит мат."
     }
 ]
 
@@ -160,9 +140,8 @@ def main_menu_keyboard():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("📖 Изучить фигуры", callback_data="menu_pieces")],
         [InlineKeyboardButton("🧠 Пройти тест", callback_data="menu_quiz")],
-        [InlineKeyboardButton("🧩 Задачи на ход", callback_data="menu_tasks")],
-        [InlineKeyboardButton("📜 Правила игры", callback_data="menu_rules")],
-        [InlineKeyboardButton("ℹ️ О сёги", callback_data="menu_about")]
+        [InlineKeyboardButton("♟ Решить задачи на ход", callback_data="menu_tasks")],
+        [InlineKeyboardButton("📜 Правила игры", callback_data="menu_rules")]
     ])
 
 def pieces_menu_keyboard():
@@ -178,12 +157,59 @@ def back_to_main():
         [InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")]
     ])
 
-# ==================== КОМАНДЫ ====================
+# ==================== ТЕКСТ СТАРТА ====================
+def get_welcome_text():
+    return (
+        "🎌 *Добро пожаловать в обучающий бот по Сёги!*\n\n"
+        "将棋 — японские шахматы, одна из древнейших стратегических игр мира.\n\n"
+        "Здесь ты можешь:\n"
+        "📖 Изучить все фигуры и их ходы\n"
+        "🧠 Проверить знания в тестах\n"
+        "♟ Решить задачи на лучший ход\n\n"
+        "Выбери раздел или используй команды:\n"
+        "/guide — обучение фигурам\n"
+        "/test — пройти тест\n"
+        "/puzzle — задачи на ход\n"
+        "/help — помощь"
+    )
+
+# ==================== ОБРАБОТЧИКИ КОМАНД ====================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     await update.message.reply_text(
-        "🎌 *Добро пожаловать в Teacher Shogi!*\n\nТвой личный интерактивный тренер по японским шахматам. Выбери раздел меню ниже:",
+        get_welcome_text(),
         parse_mode="Markdown", reply_markup=main_menu_keyboard()
+    )
+
+async def guide_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "📖 *Выберите фигуру для изучения:*",
+        parse_mode="Markdown", reply_markup=pieces_menu_keyboard()
+    )
+
+async def test_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["quiz_index"] = 0
+    context.user_data["quiz_score"] = 0
+    idx = 0
+    quiz = QUIZZES[idx]
+    text = f"🧠 *Вопрос {idx + 1}/{len(QUIZZES)}:*\n\n{quiz['question']}"
+    keyboard = [[InlineKeyboardButton(opt, callback_data=f"quiz_ans_{i}")] for i, opt in enumerate(quiz["options"])]
+    keyboard.append([InlineKeyboardButton("🏠 Выйти в меню", callback_data="menu_main")])
+    await update.message.reply_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
+
+async def puzzle_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["task_index"] = 0
+    idx = 0
+    task = TASKS[idx]
+    text = f"🧩 *{task['title']}*\n\n{task['description']}"
+    keyboard = [[InlineKeyboardButton(opt, callback_data=f"task_ans_{i}")] for i, opt in enumerate(task["options"])]
+    keyboard.append([InlineKeyboardButton("🏠 Выйти в меню", callback_data="menu_main")])
+    await update.message.reply_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "💡 Если бот завис, просто отправь команду /start.\nДля изучения используй кнопки под сообщениями.",
+        reply_markup=main_menu_keyboard()
     )
 
 # ==================== ОБРАБОТЧИК КНОПОК ====================
@@ -197,7 +223,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.message.delete()
         except Exception:
             pass
-        await query.message.chat.send_message("🎌 *Главное меню*:", parse_mode="Markdown", reply_markup=main_menu_keyboard())
+        await query.message.chat.send_message(get_welcome_text(), parse_mode="Markdown", reply_markup=main_menu_keyboard())
 
     elif data == "menu_pieces":
         try:
@@ -232,7 +258,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     missing_files += f" или {piece['img_promoted']}"
                 await query.message.chat.send_message(f"⚠️ Ошибка: На GitHub не найден файл `{missing_files}`.")
 
-    # --- ЛОГИКА ТЕСТОВ (QUIZ) ---
+    # --- ТЕСТЫ ---
     elif data == "menu_quiz":
         context.user_data["quiz_index"] = 0
         context.user_data["quiz_score"] = 0
@@ -264,7 +290,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "quiz_next":
         await send_quiz_message(query, context)
 
-    # --- ЛОГИКА ЗАДАЧ (TASKS) ---
+    # --- ЗАДАЧИ ---
     elif data == "menu_tasks":
         context.user_data["task_index"] = 0
         await send_task_message(query, context)
@@ -294,25 +320,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "task_next":
         await send_task_message(query, context)
 
-    # --- ИНФОРМАЦИОННЫЕ ПАНЕЛИ ---
-    elif data == "menu_rules":
-        rules_text = (
-            "📜 *Базовый кодекс Сёги:*\n\n"
-            "1. Поле боя имеет размер 9х9 клеток.\n"
-            "2. Главная цель игры — объявить мат Королю противника.\n"
-            "3. Уникальное свойство («Сброс»): фигуры, которые вы забираете у соперника, не уходят до конца игры. Их можно выставить из резерва (с руки) обратно на любую клетку поля вместо очередного хода!"
-        )
-        await query.edit_message_text(rules_text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Назад", callback_data="menu_main")]]))
-
-    elif data == "menu_about":
-        about_text = (
-            "ℹ️ *О проекте Teacher Shogi:*\n\n"
-            "Этот бот разработан, чтобы помочь новичкам быстро освоить каллиграфию японских шахмат, понять направления ходов сложных генералов и отточить мастерство на цумэ-задачах.\n\n"
-            "Удачи в обучении, Сёги — игра великих стратегов! 🎌"
-        )
-        await query.edit_message_text(about_text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Назад", callback_data="menu_main")]]))
-
-# ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ МЕНЮ ====================
+# ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
 async def send_quiz_message(query, context):
     idx = context.user_data.get("quiz_index", 0)
     quiz = QUIZZES[idx]
@@ -329,11 +337,25 @@ async def send_task_message(query, context):
     keyboard.append([InlineKeyboardButton("🏠 Выйти в меню", callback_data="menu_main")])
     await query.edit_message_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
 
+async def post_init(application):
+    # Настраиваем меню команд внутри самого Telegram
+    await application.bot.set_my_commands([
+        BotCommand("start", "Запустить бота"),
+        BotCommand("guide", "Изучить все фигуры"),
+        BotCommand("test", "Пройти тест знаний"),
+        BotCommand("puzzle", "Решить задачи на ход"),
+        BotCommand("help", "Помощь и поддержка"),
+    ])
+
 def main():
-    app = Application.builder().token(TOKEN).build()
+    app = Application.builder().token(TOKEN).post_init(post_init).build()
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("guide", guide_command))
+    app.add_handler(CommandHandler("test", test_command))
+    app.add_handler(CommandHandler("puzzle", puzzle_command))
+    app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CallbackQueryHandler(button_handler))
-    print("🎌 Полная версия Teacher Shogi успешно запущена!")
+    print("🎌 Бот успешно запущен и обновлен!")
     app.run_polling()
 
 if __name__ == "__main__":

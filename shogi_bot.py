@@ -1,12 +1,9 @@
 
 import logging
 import os
-import io
-from PIL import Image, ImageDraw, ImageFont
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand, InputMediaPhoto
 from telegram.ext import (
-    Application, CommandHandler, CallbackQueryHandler,
-    MessageHandler, filters, ContextTypes
+    Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 )
 
 # ==================== НАСТРОЙКИ ====================
@@ -17,7 +14,6 @@ logging.basicConfig(
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
-
 
 # ==================== ДАННЫЕ О ФИГУРАХ ====================
 PIECES = {
@@ -141,7 +137,7 @@ PIECES = {
     },
 }
 
-# ==================== ТЕСТЫ ====================
+# ==================== ВСЕ 8 ТЕСТОВ ====================
 QUIZZES = [
     {
         "question": "Какая фигура в сёги ходит только вперёд на любое количество клеток?",
@@ -208,7 +204,7 @@ QUIZZES = [
     },
 ]
 
-# ==================== ЗАДАЧИ ====================
+# ==================== ЗАДАЧИ НА ХОД ====================
 PUZZLES = [
     {
         "title": "Задача 1: Запрещённый мат",
@@ -216,7 +212,7 @@ PUZZLES = [
             "Король чёрных стоит на 1a. Пешка белых стоит на 1b.\n\n"
             "❓ Что произойдёт если пешка СБРОСОМ из руки встанет на 1b (вместо короля)?"
         ),
-        "image": "task1.png",
+        "image": "task1.jpg",
         "options": [
             "Пешка съест Короля — победа!",
             "Это запрещённый ход (утифу) — мат пешкой со сброса запрещён",
@@ -233,7 +229,7 @@ PUZZLES = [
             "У вас в руке есть захваченный Золотой генерал.\n\n"
             "❓ Как лучше всего защититься?"
         ),
-        "image": "task2.png",
+        "image": "task2.jpg",
         "options": [
             "Убежать Королём в сторону",
             "Сбросить Золотого генерала на поле 2b",
@@ -249,7 +245,7 @@ PUZZLES = [
             "Пешка белых дошла до самого края доски (1-й ряд) — позиция 1a.\n\n"
             "❓ Что должно произойти?"
         ),
-        "image": "task3.png",
+        "image": "task3.jpg",
         "options": [
             "Пешка остаётся пешкой",
             "Пешка обязана превратиться в Tokin",
@@ -263,14 +259,13 @@ PUZZLES = [
 
 # ==================== КЛАВИАТУРЫ ====================
 def main_menu_keyboard():
-    keyboard = [
+    return InlineKeyboardMarkup([
         [InlineKeyboardButton("📖 Изучить фигуры", callback_data="menu_pieces")],
         [InlineKeyboardButton("🧠 Пройти тест", callback_data="menu_quiz")],
         [InlineKeyboardButton("♟ Задачи на ход", callback_data="menu_puzzles")],
         [InlineKeyboardButton("📜 Правила игры", callback_data="menu_rules")],
-        [InlineKeyboardButton("ℹ️ О сёги", callback_data="menu_about")],
-    ]
-    return InlineKeyboardMarkup(keyboard)
+        [InlineKeyboardButton("ℹ️ О сёги", callback_data="menu_about")]
+    ])
 
 def pieces_menu_keyboard():
     keyboard = []
@@ -318,26 +313,16 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text, parse_mode="Markdown", reply_markup=main_menu_keyboard())
 
 async def guide_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "📖 *Изучение фигур*\n\nВыбери фигуру:",
-        parse_mode="Markdown",
-        reply_markup=pieces_menu_keyboard()
-    )
+    await update.message.reply_text("📖 *Изучение фигур*\n\nВыбери фигуру:", parse_mode="Markdown", reply_markup=pieces_menu_keyboard())
 
 async def test_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["quiz_index"] = 0
     context.user_data["quiz_score"] = 0
-    q = QUIZZES[0]
-    text = f"🧠 *Вопрос 1/{len(QUIZZES)}*\n\n{q['question']}"
-    keyboard = []
-    for i, option in enumerate(q["options"]):
-        keyboard.append([InlineKeyboardButton(option, callback_data=f"quiz_ans_{i}")])
-    keyboard.append([InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")])
-    await update.message.reply_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
+    await send_quiz_message(None, context, is_edit=False, update=update)
 
 async def puzzle_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["puzzle_index"] = 0
-    await send_puzzle_new_message(update.message, context)
+    await send_puzzle_message(None, context, is_edit=False, update=update)
 
 # ==================== ОБРАБОТЧИК КНОПОК ====================
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -349,51 +334,23 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         is_photo = context.user_data.get("last_is_photo", False)
         context.user_data.clear()
         if is_photo:
-            try:
-                await query.message.delete()
-            except Exception:
-                pass
-            await query.message.chat.send_message(
-                "🎌 *Главное меню*\n\nВыбери раздел:",
-                parse_mode="Markdown",
-                reply_markup=main_menu_keyboard()
-            )
+            try: await query.message.delete()
+            except: pass
+            await query.message.chat.send_message("🎌 *Главное меню*\n\nВыбери раздел:", parse_mode="Markdown", reply_markup=main_menu_keyboard())
         else:
-            try:
-                await query.edit_message_text(
-                    "🎌 *Главное меню*\n\nВыбери раздел:",
-                    parse_mode="Markdown",
-                    reply_markup=main_menu_keyboard()
-                )
-            except Exception:
-                try:
-                    await query.message.delete()
-                except Exception:
-                    pass
-                await query.message.chat.send_message(
-                    "🎌 *Главное меню*\n\nВыбери раздел:",
-                    parse_mode="Markdown",
-                    reply_markup=main_menu_keyboard()
-                )
+            try: await query.edit_message_text("🎌 *Главное меню*\n\nВыбери раздел:", parse_mode="Markdown", reply_markup=main_menu_keyboard())
+            except:
+                try: await query.message.delete()
+                except: pass
+                await query.message.chat.send_message("🎌 *Главное меню*\n\nВыбери раздел:", parse_mode="Markdown", reply_markup=main_menu_keyboard())
 
     elif data == "menu_pieces":
         context.user_data["last_is_photo"] = False
-        try:
-            await query.edit_message_text(
-                "📖 *Фигуры сёги*\n\nВыбери фигуру, чтобы узнать о ней подробнее:",
-                parse_mode="Markdown",
-                reply_markup=pieces_menu_keyboard()
-            )
-        except Exception:
-            try:
-                await query.message.delete()
-            except Exception:
-                pass
-            await query.message.chat.send_message(
-                "📖 *Фигуры сёги*\n\nВыбери фигуру, чтобы узнать о ней подробнее:",
-                parse_mode="Markdown",
-                reply_markup=pieces_menu_keyboard()
-            )
+        try: await query.edit_message_text("📖 *Фигуры сёги*\n\nВыбери фигуру, чтобы узнать о ней подробнее:", parse_mode="Markdown", reply_markup=pieces_menu_keyboard())
+        except:
+            try: await query.message.delete()
+            except: pass
+            await query.message.chat.send_message("📖 *Фигуры сёги*\n\nВыбери фигуру, чтобы узнать о ней подробнее:", parse_mode="Markdown", reply_markup=pieces_menu_keyboard())
 
     elif data.startswith("piece_"):
         key = data.replace("piece_", "")
@@ -401,34 +358,24 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if piece:
             text = f"*{piece['emoji']} {piece['name']}*\n*Русское название: {piece['ru_name']}*\n\n{piece['description']}"
             media_group = []
-
-            # Проверяем наличие основной фотографии фигуры в корне репозитория
             if os.path.exists(piece["img_main"]):
                 media_group.append(InputMediaPhoto(open(piece["img_main"], "rb"), caption=text, parse_mode="Markdown"))
-            
-            # Проверяем наличие перевёрнутой стороны (превращения) фигуры
             if piece["img_promoted"] and os.path.exists(piece["img_promoted"]):
                 media_group.append(InputMediaPhoto(open(piece["img_promoted"], "rb")))
 
             if media_group:
-                try:
-                    await query.message.delete()
-                except Exception:
-                    pass
-                # Отправляем реальные фотографии
+                try: await query.message.delete()
+                except: pass
                 await query.message.chat.send_media_group(media=media_group)
                 await query.message.chat.send_message("🧭 Навигация:", reply_markup=back_to_main())
                 context.user_data["last_is_photo"] = True
             else:
-                missing_files = piece["img_main"]
-                if piece["img_promoted"]:
-                    missing_files += f" или {piece['img_promoted']}"
-                await query.message.chat.send_message(f"⚠️ Ошибка: В корне проекта не найден файл фото `{missing_files}`.")
+                await query.edit_message_text(f"⚠️ Фотографии для фигуры {piece['ru_name']} еще не загружены на сервер.\n\n{text}", parse_mode="Markdown", reply_markup=back_to_main())
 
     elif data == "menu_quiz":
         context.user_data["quiz_index"] = 0
         context.user_data["quiz_score"] = 0
-        await send_quiz_message(query, context)
+        await send_quiz_message(query, context, is_edit=True)
 
     elif data.startswith("quiz_ans_"):
         chosen = int(data.split("_")[2])
@@ -441,12 +388,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             result_text = f"✅ *Верно!*\n\n{quiz['explanation']}"
             context.user_data["quiz_score"] = score + 1
         else:
-            result_text = (
-                f"❌ *Неверно.*\n"
-                f"Ты выбрал: «{quiz['options'][chosen]}»\n"
-                f"Правильный ответ: «{quiz['options'][correct]}»\n\n"
-                f"{quiz['explanation']}"
-            )
+            result_text = f"❌ *Неверно.*\nТы выбрал: «{quiz['options'][chosen]}»\nПравильный ответ: «{quiz['options'][correct]}»\n\n{quiz['explanation']}"
 
         next_index = q_index + 1
         context.user_data["quiz_index"] = next_index
@@ -460,47 +402,37 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             final_score = context.user_data.get("quiz_score", 0)
             total = len(QUIZZES)
             result_text += f"\n\n🏁 *Тест завершён!*\nТвой результат: *{final_score}/{total}*"
-            if final_score == total:
-                result_text += "\n🏆 Отлично! Ты знаешь сёги!"
-            elif final_score >= total * 0.7:
-                result_text += "\n👍 Хороший результат! Продолжай изучение."
-            else:
-                result_text += "\n📖 Рекомендую ещё раз изучить фигуры."
+            if final_score == total: result_text += "\n🏆 Отлично! Ты знаешь сёги!"
+            elif final_score >= total * 0.7: result_text += "\n👍 Хороший результат! Продолжай изучение."
+            else: result_text += "\n📖 Рекомендую ещё раз изучить фигуры."
+            
             keyboard = InlineKeyboardMarkup([
                 [InlineKeyboardButton("🔄 Пройти ещё раз", callback_data="menu_quiz")],
                 [InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")]
             ])
-
         await query.edit_message_text(result_text, parse_mode="Markdown", reply_markup=keyboard)
 
     elif data == "quiz_next":
-        await send_quiz_message(query, context)
+        await send_quiz_message(query, context, is_edit=True)
 
     elif data == "quiz_prev":
         context.user_data["quiz_index"] = max(0, context.user_data.get("quiz_index", 1) - 1)
-        await send_quiz_message(query, context)
+        await send_quiz_message(query, context, is_edit=True)
 
     elif data == "menu_puzzles":
         context.user_data["puzzle_index"] = 0
-        await send_puzzle_edit(query, context)
+        await send_puzzle_message(query, context, is_edit=True)
 
     elif data.startswith("puzzle_ans_"):
         chosen = int(data.split("_")[2])
         p_index = context.user_data.get("puzzle_index", 0)
-        if p_index >= len(PUZZLES):
-            p_index = 0
-            context.user_data["puzzle_index"] = 0
         puzzle = PUZZLES[p_index]
         correct = puzzle["answer"]
 
         if chosen == correct:
             result_text = f"✅ *Правильно!*\n\n{puzzle['explanation']}"
         else:
-            result_text = (
-                f"❌ *Не совсем.*\n"
-                f"Правильный ответ: «{puzzle['options'][correct]}»\n\n"
-                f"{puzzle['explanation']}"
-            )
+            result_text = f"❌ *Неверно.*\nПравильный ответ: «{puzzle['options'][correct]}»\n\n{puzzle['explanation']}"
 
         next_index = p_index + 1
         context.user_data["puzzle_index"] = next_index
@@ -517,21 +449,16 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")]
             ])
 
-        try:
-            await query.edit_message_caption(caption=result_text, parse_mode="Markdown", reply_markup=keyboard)
-        except Exception:
-            try:
-                await query.edit_message_text(result_text, parse_mode="Markdown", reply_markup=keyboard)
-            except Exception:
-                await query.message.reply_text(result_text, parse_mode="Markdown", reply_markup=keyboard)
+        try: await query.edit_message_caption(caption=result_text, parse_mode="Markdown", reply_markup=keyboard)
+        except: await query.message.reply_text(result_text, parse_mode="Markdown", reply_markup=keyboard)
         context.user_data["last_is_photo"] = True
 
     elif data == "puzzle_next":
-        await send_puzzle_edit(query, context)
+        await send_puzzle_message(query, context, is_edit=True)
 
     elif data == "puzzle_prev":
         context.user_data["puzzle_index"] = max(0, context.user_data.get("puzzle_index", 1) - 1)
-        await send_puzzle_edit(query, context)
+        await send_puzzle_message(query, context, is_edit=True)
 
     elif data == "menu_rules":
         rules_text = (
@@ -550,8 +477,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "• Нельзя ставить фигуру туда, где у неё нет ходов\n\n"
             "🏳️ *Ничья:* возможна при повторении позиции 4 раза."
         )
-        await query.edit_message_text(rules_text, parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Назад", callback_data="menu_main")]]))
+        await query.edit_message_text(rules_text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Назад", callback_data="menu_main")]]))
 
     elif data == "menu_about":
         about_text = (
@@ -564,43 +490,45 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "В Японии около 20 миллионов игроков.\n"
             "Существует профессиональная лига с титулами: Мейдзин, Рюо и др.\n\n"
             "🤖 *Компьютер vs человек:*\n"
-            "С 2013 года компьютерные программы стабильно превосходят "
-            "профессиональных игроков.\n\n"
+            "С 2013 года компьютерные программы стабильно превосходят профессиональных игроков.\n\n"
             "🎌 *Уникальность:*\n"
             "Главное отличие от шахмат — сброс захваченных фигур.\n"
             "Это делает партии более динамичными и сложными."
         )
-        await query.edit_message_text(about_text, parse_mode="Markdown",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Назад", callback_data="menu_main")]]))
+        await query.edit_message_text(about_text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Назад", callback_data="menu_main")]]))
 
 # ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
-async def send_quiz_message(query, context):
+async def send_quiz_message(query, context, is_edit=True, update=None):
     q_index = context.user_data.get("quiz_index", 0)
     quiz = QUIZZES[q_index]
     total = len(QUIZZES)
     text = f"🧠 *Вопрос {q_index + 1}/{total}*\n\n{quiz['question']}"
+    
     keyboard = []
     for i, option in enumerate(quiz["options"]):
         keyboard.append([InlineKeyboardButton(option, callback_data=f"quiz_ans_{i}")])
+    
     nav_row = []
     if q_index > 0:
         nav_row.append(InlineKeyboardButton("◀️ Назад", callback_data="quiz_prev"))
     nav_row.append(InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main"))
     keyboard.append(nav_row)
-    await query.edit_message_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
+    
+    if is_edit and query:
+        await query.edit_message_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
+    else:
+        await update.message.reply_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
 
-async def send_puzzle_edit(query, context):
+async def send_puzzle_message(query, context, is_edit=True, update=None):
     p_index = context.user_data.get("puzzle_index", 0)
     puzzle = PUZZLES[p_index]
     total = len(PUZZLES)
-
-    board_img = draw_shogi_board(
-        puzzle["board"], puzzle["cols"], puzzle["rows"], title=puzzle["title"]
-    )
-
+    text = f"♟ *Задача {p_index + 1}/{total}: {puzzle['title']}*\n\n{puzzle['description']}"
+    
     keyboard = []
     for i, option in enumerate(puzzle["options"]):
         keyboard.append([InlineKeyboardButton(option, callback_data=f"puzzle_ans_{i}")])
+    
     nav_row = []
     if p_index > 0:
         nav_row.append(InlineKeyboardButton("◀️ Назад", callback_data="puzzle_prev"))
@@ -608,42 +536,20 @@ async def send_puzzle_edit(query, context):
     keyboard.append(nav_row)
     markup = InlineKeyboardMarkup(keyboard)
 
-    caption = f"♟ *Задача {p_index + 1}/{total}*\n\n{puzzle['description']}"
+    if is_edit and query:
+        try: await query.message.delete()
+        except: pass
+        target_chat = query.message.chat
+    else:
+        target_chat = update.message.chat
 
-    try:
-        await query.message.delete()
-    except Exception:
-        pass
-    await query.message.chat.send_photo(
-        photo=board_img,
-        caption=caption,
-        parse_mode="Markdown",
-        reply_markup=markup
-    )
-
-async def send_puzzle_new_message(message, context):
-    p_index = context.user_data.get("puzzle_index", 0)
-    puzzle = PUZZLES[p_index]
-    total = len(PUZZLES)
-
-    board_img = draw_shogi_board(
-        puzzle["board"], puzzle["cols"], puzzle["rows"], title=puzzle["title"]
-    )
-
-    keyboard = []
-    for i, option in enumerate(puzzle["options"]):
-        keyboard.append([InlineKeyboardButton(option, callback_data=f"puzzle_ans_{i}")])
-    keyboard.append([InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")])
-    markup = InlineKeyboardMarkup(keyboard)
-
-    caption = f"♟ *Задача {p_index + 1}/{total}*\n\n{puzzle['description']}"
-    await message.reply_photo(photo=board_img, caption=caption, parse_mode="Markdown", reply_markup=markup)
+    if os.path.exists(puzzle["image"]):
+        await target_chat.send_photo(photo=open(puzzle["image"], "rb"), caption=text, parse_mode="Markdown", reply_markup=markup)
+    else:
+        await target_chat.send_message(f"⚠️ Ошибка: файл {puzzle['image']} не найден.\n\n{text}", parse_mode="Markdown", reply_markup=markup)
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "Используй /start для начала или выбери раздел 🎌",
-        reply_markup=main_menu_keyboard()
-    )
+    await update.message.reply_text("Используй /start для начала или выбери раздел 🎌", reply_markup=main_menu_keyboard())
 
 # ==================== ЗАПУСК ====================
 async def post_init(application):

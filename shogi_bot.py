@@ -96,64 +96,70 @@ def draw_shogi_board(board, cols, rows, title=""):
     buf.seek(0)
     return buf
 
-# ==================== ГЕНЕРАЦИЯ КАРТОЧКИ ФИГУРЫ ====================
+# ==================== НОВАЯ, ПРОСТАЯ ГЕНЕРАЦИЯ КАРТОЧКИ ФИГУРЫ ====================
 def draw_piece_card(piece):
-    """Генерирует пятиугольную карточку Кома с каноничными кандзи сторон"""
+    """Генерирует максимально простую и четкую карточку фигуры с крупным кандзи"""
     W, H = 450, 480
+    # Чистый, мягкий кремовый фон карточки, как на скриншоте
     img = Image.new("RGB", (W, H), color=(245, 242, 235))
     draw = ImageDraw.Draw(img)
 
-    font_big = get_font(110)
-    font_mid = get_font(50)
-    font_name = get_font(32)
-    font_small = get_font(20)
-
-    # Вершины традиционной пятиугольной фигуры сёги
-    poly_points = [
-        (W // 2, 40),      # Верхний пик
-        (W - 80, 90),      # Верхний правый угол
-        (W - 60, 290),     # Нижний правый угол
-        (60, 290),         # Нижний левый угол
-        (80, 90)           # Верхний левый угол
+    # Список шрифтов для фолбека (важно для иероглифов)
+    font_paths = [
+        "shogi_font.ttc", "msgothic.ttc", "arial.ttf"
     ]
     
-    try:
-        # Эффект тени плашки
-        shadow_points = [(p[0] + 4, p[1] + 5) for p in poly_points]
-        draw.polygon(shadow_points, fill=(210, 205, 195))
-        
-        # Деревянная плашка фигуры
-        draw.polygon(poly_points, fill=(242, 198, 124), outline=(139, 90, 43), width=4)
+    font_big = font_name = font_small = None
+    for f_path in font_paths:
+        try:
+            # Сделаем иероглиф ЕЩЕ крупнее (150 вместо 110)
+            font_big = ImageFont.truetype(f_path, 150)
+            font_name = ImageFont.truetype(f_path, 36)
+            font_small = ImageFont.truetype(f_path, 22)
+            break
+        except Exception:
+            continue
 
-        cx = W // 2
-        
-        # Отрисовка сторон иероглифов (Кандзи)
-        if piece.get("promoted_kanji"):
-            draw.text((cx - 45, 175), piece["kanji"], font=font_big, fill=(30, 30, 30), anchor="mm")
-            # Перевернутая сторона традиционно отображается темно-красным цветом
-            draw.text((cx + 55, 185), piece["promoted_kanji"], font=font_mid, fill=(180, 30, 30), anchor="mm")
-            draw.text((cx - 45, 85), "Основная", font=font_small, fill=(120, 90, 50), anchor="mm")
-            draw.text((cx + 55, 115), "Перевернутая", font=font_small, fill=(150, 70, 70), anchor="mm")
-        else:
-            draw.text((cx, 170), piece["kanji"], font=font_big, fill=(30, 30, 30), anchor="mm")
+    if not font_big:
+        # Если шрифт не загрузился, будет плохо. Попробуй дефолт, но картинка не получится.
+        font_big = font_name = font_small = ImageFont.load_default()
 
-        # Названия и футер
-        draw.text((cx, 345), piece["name"], font=font_name, fill=(60, 30, 0), anchor="mm")
-        
-        ru_txt = f" {piece['ru_name']} "
-        draw.rounded_rectangle([cx - 130, 380, cx + 130, 415], radius=5, fill=(225, 215, 195))
-        draw.text((cx, 396), ru_txt, font=font_small, fill=(100, 40, 0), anchor="mm")
-        draw.text((cx, 450), "将棋 • Japanese Chess", font=font_small, fill=(160, 140, 120), anchor="mm")
-        
-    except Exception as e:
-        logger.error(f"Ошибка Pillow отрисовки (возможно, дефолтный шрифт): {e}")
-        draw.text((W // 2, H // 2), piece["ru_name"], fill=(0, 0, 0), font=font_name, anchor="mm")
+    # --- РИСУЕМ УПРОЩЕННУЮ ФИГУРУ СЁГИ (ПЯТИУГОЛЬНИК) ---
+    # Мы сделаем его чуть шире и ниже, чтобы он «смотрелся» проще
+    poly_points = [
+        (W // 2, 60),      # Верхний пик
+        (W - 100, 100),    # Верхний правый угол
+        (W - 80, 310),     # Нижний правый угол
+        (80, 310),         # Нижний левый угол
+        (100, 100)         # Верхний левый угол
+    ]
+    
+    # Текстура дерева — мы заменим ее на простой, однородный цвет светлого дерева
+    # Тень
+    shadow_points = [(p[0] + 4, p[1] + 5) for p in poly_points]
+    draw.polygon(shadow_points, fill=(215, 210, 200))
+    # Простая деревянная плашка (традиционный цвет хоноки)
+    draw.polygon(poly_points, fill=(245, 210, 150), outline=(139, 90, 43), width=4)
+
+    # --- КРУПНЫЙ И ЧЕТКИЙ КАНДЗИ ---
+    cx = W // 2
+    # Оставляем только основной иероглиф, чтобы он был МАКСИМАЛЬНО большим и по центру
+    draw.text((cx, 195), piece["kanji"], font=font_big, fill=(30, 30, 30), anchor="mm")
+
+    # --- УПРОЩЕННЫЙ ТЕКСТОВЫЙ БЛОК СНИЗУ ---
+    # Название на ромадзи / японском
+    draw.text((cx, 365), piece["name"], font=font_name, fill=(60, 30, 0), anchor="mm")
+    
+    # Русское название — просто текст, без подложки, чтобы было чище
+    draw.text((cx, 410), piece['ru_name'], font=font_small, fill=(100, 40, 0), anchor="mm")
+
+    # Лаконичный футер
+    draw.text((cx, 455), "将棋 • SHOGI", font=font_small, fill=(170, 150, 130), anchor="mm")
 
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     buf.seek(0)
     return buf
-
 # ==================== ДАННЫЕ О ФИГУРАХ ====================
 PIECES = {
     "ОУ": {

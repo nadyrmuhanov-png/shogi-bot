@@ -15,17 +15,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-IMAGE_FOLDER = "piece_images"
-
 # ==================== ДАННЫЕ О ФИГУРАХ ====================
-# Для каждой фигуры указываем путь к обычной стороне и к перевернутой (если она есть)
+# Файлы ищутся прямо в корне репозитория (рядом с shogi_bot.py)
 PIECES = {
     "ФУ": {
         "name": "Fuhyo (歩兵)",
         "ru_name": "Пешка",
         "kanji": "歩",
-        "img_main": os.path.join(IMAGE_FOLDER, "fu.jpg"),
-        "img_promoted": os.path.join(IMAGE_FOLDER, "fu_promoted.jpg"), # Токин (と)
+        "img_main": "fu.jpg",
+        "img_promoted": "fu_promoted.jpg", 
         "description": (
             "♟ *Ход:* одна клетка строго вперёд.\n\n"
             "⭐ *После превращения:* доходит до зоны превращения (последние 3 горизонтали) "
@@ -37,8 +35,8 @@ PIECES = {
         "name": "Osho / Gyokusho (王将/玉将)",
         "ru_name": "Король",
         "kanji": "王",
-        "img_main": os.path.join(IMAGE_FOLDER, "gyoku.jpg"),
-        "img_promoted": None, # Не превращается
+        "img_main": "gyoku.jpg",
+        "img_promoted": None, 
         "description": (
             "♟ *Ход:* на одну клетку в любом направлении (все 8 сторон).\n\n"
             "🎯 *Цель игры:* поймать Короля соперника и поставить ему мат."
@@ -48,8 +46,8 @@ PIECES = {
         "name": "Hisha (飛車)",
         "ru_name": "Ладья",
         "kanji": "飛",
-        "img_main": os.path.join(IMAGE_FOLDER, "hisha.jpg"),
-        "img_promoted": os.path.join(IMAGE_FOLDER, "hisha_promoted.jpg"),
+        "img_main": "hisha.jpg",
+        "img_promoted": "hisha_promoted.jpg",
         "description": (
             "♟ *Ход:* на любое количество клеток по горизонтали или вертикали.\n\n"
             "⭐ *После превращения:* становится Драконом («Ryuo»). Сохраняет ходы ладьи + добавляется ход на 1 клетку по диагоналям."
@@ -59,18 +57,18 @@ PIECES = {
         "name": "Kakugyo (角行)",
         "ru_name": "Слон",
         "kanji": "角",
-        "img_main": os.path.join(IMAGE_FOLDER, "kaku.jpg"),
-        "img_promoted": os.path.join(IMAGE_FOLDER, "kaku_promoted.jpg"),
+        "img_main": "kaku.jpg",
+        "img_promoted": "kaku_promoted.jpg",
         "description": (
             "♟ *Ход:* на любое количество клеток по диагонали.\n\n"
-            "⭐ *После превращения:* становится Лошадью («Ryuma»). Сохраняет ходы слона + добавляется ход на 1 клетку по вертикали/горизонтали."
+            "⭐ *После превращения:* становится Лошадью («Ryuma»). Сохраняет ходы слона + добавляется ход на 1 клетку по vertical/горизонтали."
         ),
     },
     "КИН": {
         "name": "Kinsho (金将)",
         "ru_name": "Золотой генерал",
         "kanji": "金",
-        "img_main": os.path.join(IMAGE_FOLDER, "kin.jpg"),
+        "img_main": "kin.jpg",
         "img_promoted": None,
         "description": (
             "♟ *Ход:* на 1 клетку в любую сторону, кроме как по диагонали назад (6 направлений).\n\n"
@@ -81,8 +79,8 @@ PIECES = {
         "name": "Ginsho (銀将)",
         "ru_name": "Серебряный генерал",
         "kanji": "銀",
-        "img_main": os.path.join(IMAGE_FOLDER, "gin.jpg"),
-        "img_promoted": os.path.join(IMAGE_FOLDER, "gin_promoted.jpg"),
+        "img_main": "gin.jpg",
+        "img_promoted": "gin_promoted.jpg",
         "description": (
             "♟ *Ход:* на 1 клетку вперёд или по любым диагоналям (5 направлений).\n\n"
             "⭐ *После превращения:* ходит как Золотой генерал."
@@ -92,8 +90,8 @@ PIECES = {
         "name": "Keima (桂馬)",
         "ru_name": "Конь",
         "kanji": "桂",
-        "img_main": os.path.join(IMAGE_FOLDER, "kei.jpg"),
-        "img_promoted": os.path.join(IMAGE_FOLDER, "kei_promoted.jpg"),
+        "img_main": "kei.jpg",
+        "img_promoted": "kei_promoted.jpg",
         "description": (
             "♟ *Ход:* буквой «Г» исключительно вперёд (на 2 клетки вперёд и 1 в сторону).\n\n"
             "⭐ *После превращения:* ходит как Золотой генерал."
@@ -103,8 +101,8 @@ PIECES = {
         "name": "Kyosha (香車)",
         "ru_name": "Копьеносец",
         "kanji": "香",
-        "img_main": os.path.join(IMAGE_FOLDER, "kyo.jpg"),
-        "img_promoted": os.path.join(IMAGE_FOLDER, "kyo_promoted.jpg"),
+        "img_main": "kyo.jpg",
+        "img_promoted": "kyo_promoted.jpg",
         "description": (
             "♟ *Ход:* на любое количество клеток строго вперёд.\n\n"
             "⭐ *После превращения:* ходит как Золотой генерал."
@@ -157,7 +155,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
 
     if data == "menu_main":
-        # Если до этого отправлялись картинки альбомом, лучше прислать меню новым сообщением
         try:
             await query.message.delete()
         except Exception:
@@ -178,26 +175,27 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             caption_text = f"🔹 *{piece['name']} — {piece['ru_name']}*\n\n{piece['description']}"
             media_group = []
 
-            # Проверяем наличие основного фото
+            # Ищем файлы прямо в корне репозитория
             if os.path.exists(piece["img_main"]):
                 media_group.append(InputMediaPhoto(open(piece["img_main"], "rb"), caption=caption_text, parse_mode="Markdown"))
             
-            # Проверяем наличие перевернутого фото
             if piece["img_promoted"] and os.path.exists(piece["img_promoted"]):
                 media_group.append(InputMediaPhoto(open(piece["img_promoted"], "rb")))
 
             if media_group:
                 try:
-                    await query.message.delete() # Удаляем текстовое меню
+                    await query.message.delete()
                 except Exception:
                     pass
                 
-                # Отправляем пачку фото (альбом)
+                # Отправляем альбом фотографий
                 await query.message.chat.send_media_group(media=media_group)
-                # Отдельно досылаем кнопки навигации под альбомом
                 await query.message.chat.send_message("🧭 Навигация:", reply_markup=back_to_main())
             else:
-                await query.message.chat.send_message(f"⚠️ Фотографии для фигуры {piece['ru_name']} еще не загружены на сервер.")
+                missing_files = piece["img_main"]
+                if piece["img_promoted"]:
+                    missing_files += f" или {piece['img_promoted']}"
+                await query.message.chat.send_message(f"⚠️ Ошибка: На GitHub не найден файл `{missing_files}`.")
 
     elif data == "menu_quiz":
         context.user_data["quiz_index"] = 0
@@ -207,7 +205,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(f"🧠 *Вопрос 1*\n\n{q['question']}", parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
 
     elif data.startswith("quiz_ans_"):
-        # Упрощенная логика квиза для примера
         await query.edit_message_text("🎉 Ответ принят! Возвращайся в меню.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Меню", callback_data="menu_main")]]))
 
     elif data == "menu_rules":
@@ -217,7 +214,7 @@ def main():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
-    print("🎌 Бот успешно запущен на реальных фото-карточках!")
+    print("🎌 Бот успешно запущен!")
     app.run_polling()
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 import logging
 import os
-import random  # Добавлено для генерации вариантов ответов
+import random
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand, InputMediaPhoto
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
@@ -137,9 +137,7 @@ PIECES = {
     },
 }
 
-# ==================== ТЕСТЫ НА ПАМЯТЬ ====================
-
-# Тест 1: В вопросе картинка, в кнопках — текст
+# ==================== ТЕСТ 1: УГАДАЙ ПО ФОТО ====================
 MEMORY_TEST_BY_PHOTO = [
     {
         "image": "gyoku.jpg",
@@ -153,21 +151,21 @@ MEMORY_TEST_BY_PHOTO = [
         "question": "🖼 Какая фигура изображена на фотографии?",
         "options": ["Слон (Kakugyo)", "Ладья (Hisha)", "Копьеносец (Kyosha)", "Конь (Keima)"],
         "answer": 1,
-        "explanation": "Это Ладья (Hisha). Её иероглиф переводится как 'летающая колесница'."
+        "explanation": "Это Ладья (Hisha). Её иероглиф переводится как «летающая колесница»."
     },
     {
         "image": "kaku.jpg",
         "question": "🖼 Какая фигура изображена на фотографии?",
         "options": ["Пешка (Fuhyo)", "Золотой генерал (Kinsho)", "Слон (Kakugyo)", "Король"],
         "answer": 2,
-        "explanation": "Это Слон (Kakugyo). Его иероглиф переводится как 'угловой ходок'."
+        "explanation": "Это Слон (Kakugyo). Его иероглиф переводится как «угловой ходок»."
     },
     {
         "image": "kin.jpg",
         "question": "🖼 Какая фигура изображена на фотографии?",
         "options": ["Серебряный генерал (Ginsho)", "Золотой генерал (Kinsho)", "Копьеносец (Kyosha)", "Конь (Keima)"],
         "answer": 1,
-        "explanation": "Это Золотой генерал (Kinsho). Обрати внимание на иероглиф 金 (золото) — основа большинства защитных крепостей."
+        "explanation": "Это Золотой генерал (Kinsho). Иероглиф 金 (золото) — основа большинства защитных крепостей."
     },
     {
         "image": "gin.jpg",
@@ -188,46 +186,46 @@ MEMORY_TEST_BY_PHOTO = [
         "question": "🖼 Какая фигура изображена на фотографии?",
         "options": ["Копьеносец (Kyosha)", "Пешка (Fuhyo)", "Слон (Kakugyo)", "Золотой генерал (Kinsho)"],
         "answer": 0,
-        "explanation": "An Копьеносец (Kyosha). Первый иероглиф 香 означает 'ароматный' или 'благовоние'."
+        "explanation": "Это Копьеносец (Kyosha). Первый иероглиф 香 означает «ароматный» или «благовоние»."
     },
     {
         "image": "fu.jpg",
         "question": "🖼 Какая фигура изображена на фотографии?",
         "options": ["Конь (Keima)", "Пешка (Fuhyo)", "Серебряный генерал (Ginsho)", "Король"],
         "answer": 1,
-        "explanation": "Это Пешка (Fuhyo). Самый простой иероглиф 歩, означающий 'пеший шаг'."
-    }
+        "explanation": "Это Пешка (Fuhyo). Самый простой иероглиф 歩, означающий «пеший шаг»."
+    },
 ]
 
-# Тест 2: В вопросе текст, бот присылает Альбом из 4 фото, в кнопках — буквы вариантов
+# ==================== ТЕСТ 2: НАЙДИ ПО ТЕКСТУ ====================
 MEMORY_TEST_BY_TEXT = [
     {
         "question": "📝 Как выглядит Король (Osho/Gyoku)? Посмотрите на медиагруппу выше и выберите букву:",
-        "images": ["gyoku.jpg", "kin.jpg", "gin.jpg", "fu.jpg"], # Вариант А будет правильным
+        "images": ["gyoku.jpg", "kin.jpg", "gin.jpg", "fu.jpg"],
         "correct_letter": "A",
         "explanation": "Верно! Король — самый крупный пятиугольник, часто имеет точку в нижнем иероглифе у младшего игрока."
     },
     {
         "question": "📝 Как выглядит Ладья (Hisha)? Посмотрите на медиагруппу выше и выберите букву:",
-        "images": ["kaku.jpg", "hisha.jpg", "kyo.jpg", "kei.jpg"], # Вариант B будет правильным
+        "images": ["kaku.jpg", "hisha.jpg", "kyo.jpg", "kei.jpg"],
         "correct_letter": "B",
-        "explanation": "Верно! Ладья (Hisha) выделяется сложным верхним иероглифом '飛' (летать)."
+        "explanation": "Верно! Ладья (Hisha) выделяется сложным верхним иероглифом «飛» (летать)."
     },
     {
         "question": "📝 Как выглядит Конь (Keima)? Посмотрите на медиагруппу выше и выберите букву:",
-        "images": ["fu.jpg", "gin.jpg", "kei.jpg", "kin.jpg"], # Вариант C будет правильным
+        "images": ["fu.jpg", "gin.jpg", "kei.jpg", "kin.jpg"],
         "correct_letter": "C",
         "explanation": "Верно! Иероглиф Коня (桂) содержит элемент дерева слева."
     },
     {
         "question": "📝 Как выглядит Пешка (Fuhyo)? Посмотрите на медиагруппу выше и выберите букву:",
-        "images": ["kyo.jpg", "kin.jpg", "gyoku.jpg", "fu.jpg"], # Вариант D будет правильным
+        "images": ["kyo.jpg", "kin.jpg", "gyoku.jpg", "fu.jpg"],
         "correct_letter": "D",
         "explanation": "Верно! Пешка обозначается иероглифом 歩 (шаг)."
-    }
+    },
 ]
 
-# (Твои старые квизы QUIZZES и PUZZLES остаются без изменений)
+# ==================== ТЕСТ 3: ОБЩАЯ ТЕОРИЯ ====================
 QUIZZES = [
     {
         "question": "Какая фигура в сёги ходит только вперёд на любое количество клеток?",
@@ -254,7 +252,7 @@ QUIZZES = [
         "explanation": "Золотой генерал (Kinsho) — единственная фигура кроме Короля, которая не превращается."
     },
     {
-        "question": "What happens to captured pieces in shogi?",
+        "question": "Что происходит с захваченными фигурами в сёги?",
         "options": [
             "Они убираются из игры",
             "Игрок может вернуть их на доску как свои",
@@ -294,12 +292,13 @@ QUIZZES = [
     },
 ]
 
+# ==================== ЗАДАЧИ НА ХОД ====================
 PUZZLES = [
     {
         "title": "Задача 1: Запрещённый мат",
         "description": (
             "Король чёрных стоит на 1a. Пешка белых стоит на 1b.\n\n"
-            "❓ Что произойдёт если пешка СБРОСОМ из руки встанет на 1b (вместо короля)?"
+            "❓ Что произойдёт если пешка СБРОСОМ из руки встанет на 1b?"
         ),
         "image": "t1.jpg",
         "options": [
@@ -321,7 +320,7 @@ PUZZLES = [
         "image": "t2.jpg",
         "options": [
             "Убежать Королём в сторону",
-            "Сбросить Золотого генерала на pole 2b",
+            "Сбросить Золотого генерала на поле 2b",
             "Сдаться",
             "Ничего не делать"
         ],
@@ -358,7 +357,7 @@ PUZZLES = [
             "Сбросить Слона на 6b"
         ],
         "answer": 0,
-        "explanation": "Правильно! Сброс Слона на поле 8b создает линейную угрозу (шах королю на 7a и одновременное нападение на ладью на 9c)."
+        "explanation": "Правильно! Сброс Слона на поле 8b создает угрозу Королю на 7a и одновременное нападение на ладью на 9c."
     },
     {
         "title": "Задача 5: Цуме-сёги (Мат в 1 ход)",
@@ -369,22 +368,20 @@ PUZZLES = [
         ),
         "image": "t5.jpg",
         "options": [
-            "Сбросить на 1b прямо перед Королем",
+            "Сбросить на 1b прямо перед Королём",
             "Сбросить на 2b",
             "Сбросить на 2a",
             "Ходов нет, это ничья"
         ],
         "answer": 0,
-        "explanation": "Золотой генерал, сброшенный на 1b «в голову королю», объявляет мат, так как бьет все поля вокруг себя и защищен вашими тыловыми фигурами."
+        "explanation": "Золотой генерал, сброшенный на 1b «в голову королю», объявляет мат, так как бьет все поля вокруг себя."
     },
     {
         "title": "Задача 6: Контратака в миттельшпиле",
         "description": (
-            "Позиция на картинке: соперник обострил игру в центре. "
-            "Ваш Король находится на 3f, но сейчас ВАШ ход.\n"
-            "Взгляните на лагерь белых: их Король на 7b защищен только Ладьей на 8b.\n\n"
-            "❓ У вас в руке есть Слон, Золото, Конь и Копье. Каким сокрушительным сбросом "
-            "из руки можно сразу разрушить оборону противника и объявить вилку на Короля и Ладью?"
+            "Король противника на 7b защищен только Ладьей на 8b.\n"
+            "У вас в руке есть Слон, Золото, Конь и Копьё.\n\n"
+            "❓ Каким сбросом из руки можно сразу создать вилку на Короля и Ладью?"
         ),
         "image": "t6.jpg",
         "options": [
@@ -394,21 +391,14 @@ PUZZLES = [
             "Сбросить Коня на 6d"
         ],
         "answer": 1,
-        "explanation": (
-            "Великолепно! Сброс Слона (Kakugyo) на поле 4e — это победный ход. "
-            "Отсюда Слон по длинной диагонали объявляет шах Королю на 7b и одновременно "
-            "атакует незащищенную Ладью на 2e. Белым придется тратить ход на защиту Короля, "
-            "и вы заберете Ладью, перехватывая полную инициативу в партии!"
-        )
+        "explanation": "Сброс Слона на поле 4e — победный ход. Отсюда Слон по длинной диагонали объявляет шах Королю на 7b и атакует Ладью на 2e."
     },
     {
         "title": "Задача 7: Матовая атака (Цуме в 2 хода)",
         "description": (
-            "Позиция на картинке: игра перешла в решающую стадию эндшпиля. "
-            "Вражеский Король находится на 8b, а ваше Золото на 7d контролирует важные поля.\n"
-            "В руке у вас выбор: Золото и две пешки.\n\n"
-            "❓ Вы начинаете матовую атаку и первым ходом сбрасываете Золото на поле 8c, объявляя шах. "
-            "Король соперника вынужден бежать в угол на поле 7a. Каким вторым ходом вы ставите неизбежный мат?"
+            "Вражеский Король на 8b. В руке у вас Золото и две пешки.\n\n"
+            "❓ Первым ходом вы сбрасываете Золото на 8c (шах). Король бежит на 7a. "
+            "Каким вторым ходом вы ставите мат?"
         ),
         "image": "t7.jpg",
         "options": [
@@ -418,59 +408,28 @@ PUZZLES = [
             "Сбросить пешку на поле 8b"
         ],
         "answer": 1,
-        "explanation": (
-            "Абсолютно верно! После отступления Короля в угол на 7a, продвигая Золотого генерала на поле 7b ставит сокрушительный мат."
-        )
+        "explanation": "После отступления Короля в угол на 7a, продвигая Золотого генерала на поле 7b ставит сокрушительный мат."
     },
     {
         "title": "Задача 8: Финальный аккорд (Мат в 1 ход)",
         "description": (
-            "Позиция на картинке: финальный штурм! Вражеский Король зажат на поле 2c.\n"
-            "Ваша Ладья на 4b полностью контролирует 2-ю горизонталь, отрезая пути отхода.\n"
-            "В руке у вас огромный выбор захваченных фигур (включая 4 Золотых генерала).\n\n"
-            "❓ Найдите поле для сброса Золотого генерала (Kinsho), чтобы поставить мгновенный мат в 1 ход."
+            "Вражеский Король зажат на поле 2c. Ваша Ладья на 4b контролирует 2-ю горизонталь.\n"
+            "В руке много фигур включая Золотых генералов.\n\n"
+            "❓ Куда сбросить Золотого генерала (Kinsho) для мгновенного мата?"
         ),
         "image": "t8.jpg",
         "options": [
-            "Сбросить Золото на 2b (прямо перед Королем)",
+            "Сбросить Золото на 2b (прямо перед Королём)",
             "Сбросить Золото на 1b",
             "Сбросить Золото на 3b",
             "Сбросить Золото на 2d"
         ],
         "answer": 2,
-        "explanation": (
-            "Абсолютно верно! Сброс Золотого генерала на поле 3b ставит неизбежный мат. Это победа!"
-        )
+        "explanation": "Сброс Золотого генерала на поле 3b ставит неизбежный мат. Это победа!"
     },
 ]
 
-# ==================== КЛАВИАТУРЫ ====================
-def main_menu_keyboard():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("📖 Изучить фигуры", callback_data="menu_pieces")],
-        [InlineKeyboardButton("🧠 Тест: Общая теория", callback_data="menu_quiz")],
-        [InlineKeyboardButton("🖼 Тест: Угадай по фото", callback_data="menu_test_photo")],
-        [InlineKeyboardButton("📝 Тест: Найди по тексту", callback_data="menu_test_text")],
-        [InlineKeyboardButton("♟ Задачи на ход", callback_data="menu_puzzles")],
-        [InlineKeyboardButton("📜 Правила игры", callback_data="menu_rules")],
-        [InlineKeyboardButton("ℹ️ О сёги", callback_data="menu_about")]
-    ])
-
-def pieces_menu_keyboard():
-    keyboard = []
-    for key, piece in PIECES.items():
-        btn_text = f"{piece['emoji']} {piece['ru_name']} ({piece['name'].split(' ')[0]})"
-        keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"piece_{key}")])
-    keyboard.append([InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")])
-    return InlineKeyboardMarkup(keyboard)
-
-def back_to_main():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("◀️ Назад к фигурам", callback_data="menu_pieces")],
-        [InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")]
-    ])
-
-# ==================== ТЕКСТЫ ДЛЯ МЕНЮ ====================
+# ==================== ТЕКСТЫ ====================
 START_TEXT = (
     "🎌 *Добро пожаловать в обучающий бот по Сёги!*\n\n"
     "将棋 — японские шахматы, одна из древнейших стратегических игр мира.\n\n"
@@ -502,6 +461,32 @@ RULES_TEXT = (
     "🏳️ *Ничья:* возможна при повторении позиции 4 раза."
 )
 
+# ==================== КЛАВИАТУРЫ ====================
+def main_menu_keyboard():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("📖 Изучить фигуры", callback_data="menu_pieces")],
+        [InlineKeyboardButton("🧠 Тест: Общая теория", callback_data="menu_quiz")],
+        [InlineKeyboardButton("🖼 Тест: Угадай по фото", callback_data="menu_test_photo")],
+        [InlineKeyboardButton("📝 Тест: Найди по тексту", callback_data="menu_test_text")],
+        [InlineKeyboardButton("♟ Задачи на ход", callback_data="menu_puzzles")],
+        [InlineKeyboardButton("📜 Правила игры", callback_data="menu_rules")],
+        [InlineKeyboardButton("ℹ️ О сёги", callback_data="menu_about")]
+    ])
+
+def pieces_menu_keyboard():
+    keyboard = []
+    for key, piece in PIECES.items():
+        btn_text = f"{piece['emoji']} {piece['ru_name']} ({piece['name'].split(' ')[0]})"
+        keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"piece_{key}")])
+    keyboard.append([InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")])
+    return InlineKeyboardMarkup(keyboard)
+
+def back_to_main():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("◀️ Назад к фигурам", callback_data="menu_pieces")],
+        [InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")]
+    ])
+
 # ==================== КОМАНДЫ ====================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
@@ -520,7 +505,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/start — Главное меню\n"
         "/guide — Изучение фигур\n"
         "/test — Пройти тест по сёги\n"
-        "/puzzle — Задачи на лучший ход\n"
+        "/puzzle — Задачи на ход\n"
         "/help — Это сообщение\n\n"
         "Также можно нажимать кнопки в меню 👆"
     )
@@ -544,20 +529,14 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     data = query.data
 
+    # --- ГЛАВНОЕ МЕНЮ ---
     if data == "menu_main":
         context.user_data.clear()
-        try: await query.message.delete()
-        except: pass
-        
-if os.path.exists("doska.jpg"):
-            with open("doska.jpg", "rb") as photo:
-                await query.message.chat.send_photo(photo=photo, caption="🔹 *Главное меню*\n\nВыбери раздел:", parse_mode="Markdown", reply_markup=main_menu_keyboard())
-            context.user_data["last_is_photo"] = True
-      else:
-            await query.message.chat.send_message("🔹 *Главное меню*\n\nВыбери раздел:", parse_mode="Markdown", reply_markup=main_menu_keyboard())
-            context.user_data["last_is_photo"] = False
-
-  if os.path.exists("doska.jpg"):
+        try:
+            await query.message.delete()
+        except:
+            pass
+        if os.path.exists("doska.jpg"):
             with open("doska.jpg", "rb") as photo:
                 await query.message.chat.send_photo(photo=photo, caption="🔹 *Главное меню*\n\nВыбери раздел:", parse_mode="Markdown", reply_markup=main_menu_keyboard())
             context.user_data["last_is_photo"] = True
@@ -565,6 +544,7 @@ if os.path.exists("doska.jpg"):
             await query.message.chat.send_message("🔹 *Главное меню*\n\nВыбери раздел:", parse_mode="Markdown", reply_markup=main_menu_keyboard())
             context.user_data["last_is_photo"] = False
 
+    # --- СПИСОК ФИГУР ---
     elif data == "menu_pieces":
         is_photo = context.user_data.get("last_is_photo", False)
         context.user_data["last_is_photo"] = False
@@ -583,6 +563,9 @@ if os.path.exists("doska.jpg"):
                 except:
                     pass
                 await query.message.chat.send_message("📖 *Фигуры сёги*\n\nВыбери фигуру, чтобы узнать о ней подробнее:", parse_mode="Markdown", reply_markup=pieces_menu_keyboard())
+
+    # --- КОНКРЕТНАЯ ФИГУРА ---
+    elif data.startswith("piece_"):
         key = data.replace("piece_", "")
         piece = PIECES.get(key)
         if piece:
@@ -591,28 +574,33 @@ if os.path.exists("doska.jpg"):
             if os.path.exists(piece["img_main"]):
                 media_group.append(InputMediaPhoto(open(piece["img_main"], "rb"), caption=text, parse_mode="Markdown"))
             if piece["img_promoted"] and os.path.exists(piece["img_promoted"]):
-                media_group.append(InputMediaPhoto(open(piece["img_promoted"], "rb")))
-
+                media_group.append(InputMediaPhoto(open(piece["img_promoted"], "rb"), caption="⭐ Превращённая форма"))
             if media_group:
-                try: await query.message.delete()
-                except: pass
+                try:
+                    await query.message.delete()
+                except:
+                    pass
                 await query.message.chat.send_media_group(media=media_group)
                 await query.message.chat.send_message("🧭 Навигация:", reply_markup=back_to_main())
                 context.user_data["last_is_photo"] = True
             else:
-                try: await query.message.delete()
-                except: pass
-                await query.message.chat.send_message(f"⚠️ Фотографии для фигуры {piece['ru_name']} еще не загружены на сервер.\n\n{text}", parse_mode="Markdown", reply_markup=back_to_main())
+                try:
+                    await query.message.delete()
+                except:
+                    pass
+                await query.message.chat.send_message(f"⚠️ Фото для фигуры {piece['ru_name']} ещё не загружены.\n\n{text}", parse_mode="Markdown", reply_markup=back_to_main())
                 context.user_data["last_is_photo"] = False
 
-    # --- ЛОГИКА ТЕСТА: ОБЩАЯ ТЕОРИЯ ---
+    # --- ТЕСТ: ОБЩАЯ ТЕОРИЯ ---
     elif data == "menu_quiz":
         context.user_data["quiz_index"] = 0
         context.user_data["quiz_score"] = 0
         is_photo = context.user_data.get("last_is_photo", False)
         if is_photo:
-            try: await query.message.delete()
-            except: pass
+            try:
+                await query.message.delete()
+            except:
+                pass
             await send_quiz_message(query, context, is_edit=False, update=update)
         else:
             await send_quiz_message(query, context, is_edit=True)
@@ -642,6 +630,12 @@ if os.path.exists("doska.jpg"):
             final_score = context.user_data.get("quiz_score", 0)
             total = len(QUIZZES)
             result_text += f"\n\n🏁 *Тест завершён!*\nТвой результат: *{final_score}/{total}*"
+            if final_score == total:
+                result_text += "\n🏆 Отлично! Ты знаешь сёги!"
+            elif final_score >= total * 0.7:
+                result_text += "\n👍 Хороший результат!"
+            else:
+                result_text += "\n📖 Рекомендую ещё раз изучить фигуры."
             keyboard = InlineKeyboardMarkup([
                 [InlineKeyboardButton("🔄 Пройти ещё раз", callback_data="menu_quiz")],
                 [InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")]
@@ -651,16 +645,19 @@ if os.path.exists("doska.jpg"):
 
     elif data == "quiz_next":
         await send_quiz_message(query, context, is_edit=True)
+
     elif data == "quiz_prev":
         context.user_data["quiz_index"] = max(0, context.user_data.get("quiz_index", 1) - 1)
         await send_quiz_message(query, context, is_edit=True)
 
-    # --- ЛОГИКА ТЕСТА 1: УГАДАЙ ПО ФОТО ---
+    # --- ТЕСТ: УГАДАЙ ПО ФОТО ---
     elif data == "menu_test_photo":
         context.user_data["test_photo_index"] = 0
         context.user_data["test_photo_score"] = 0
-        try: await query.message.delete()
-        except: pass
+        try:
+            await query.message.delete()
+        except:
+            pass
         await send_test_photo_message(query, context, update=update)
 
     elif data.startswith("tp_ans_"):
@@ -685,26 +682,31 @@ if os.path.exists("doska.jpg"):
             ])
         else:
             final_score = context.user_data.get("test_photo_score", 0)
-            result_text += f"\n\n🏁 *Визуальный тест завершен!*\nВаш результат: *{final_score}/{len(MEMORY_TEST_BY_PHOTO)}*"
+            result_text += f"\n\n🏁 *Визуальный тест завершён!*\nВаш результат: *{final_score}/{len(MEMORY_TEST_BY_PHOTO)}*"
             keyboard = InlineKeyboardMarkup([
                 [InlineKeyboardButton("🔄 Начать заново", callback_data="menu_test_photo")],
                 [InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")]
             ])
-        
-        try: await query.edit_message_caption(caption=result_text, parse_mode="Markdown", reply_markup=keyboard)
-        except: await query.message.reply_text(result_text, parse_mode="Markdown", reply_markup=keyboard)
+        try:
+            await query.edit_message_caption(caption=result_text, parse_mode="Markdown", reply_markup=keyboard)
+        except:
+            await query.message.reply_text(result_text, parse_mode="Markdown", reply_markup=keyboard)
 
     elif data == "tp_next":
-        try: await query.message.delete()
-        except: pass
+        try:
+            await query.message.delete()
+        except:
+            pass
         await send_test_photo_message(query, context, update=update)
 
-    # --- ЛОГИКА ТЕСТА 2: НАЙДИ ПО ТЕКСТУ ---
+    # --- ТЕСТ: НАЙДИ ПО ТЕКСТУ ---
     elif data == "menu_test_text":
         context.user_data["test_text_index"] = 0
         context.user_data["test_text_score"] = 0
-        try: await query.message.delete()
-        except: pass
+        try:
+            await query.message.delete()
+        except:
+            pass
         await send_test_text_message(query, context, update=update)
 
     elif data.startswith("tt_ans_"):
@@ -724,30 +726,35 @@ if os.path.exists("doska.jpg"):
 
         if next_index < len(MEMORY_TEST_BY_TEXT):
             keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton(f"➡️ К следующему вопросу ({next_index + 1}/{len(MEMORY_TEST_BY_TEXT)})", callback_data="tt_next")],
+                [InlineKeyboardButton(f"➡️ Следующий вопрос ({next_index + 1}/{len(MEMORY_TEST_BY_TEXT)})", callback_data="tt_next")],
                 [InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")]
             ])
         else:
             final_score = context.user_data.get("test_text_score", 0)
-            result_text += f"\n\n🏁 *Тест на поиск фигур завершен!*\nВаш результат: *{final_score}/{len(MEMORY_TEST_BY_TEXT)}*"
+            result_text += f"\n\n🏁 *Тест на поиск фигур завершён!*\nВаш результат: *{final_score}/{len(MEMORY_TEST_BY_TEXT)}*"
             keyboard = InlineKeyboardMarkup([
                 [InlineKeyboardButton("🔄 Начать заново", callback_data="menu_test_text")],
                 [InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")]
             ])
-
-        try: await query.edit_message_caption(caption=result_text, parse_mode="Markdown", reply_markup=keyboard)
-        except: await query.message.reply_text(result_text, parse_mode="Markdown", reply_markup=keyboard)
+        try:
+            await query.edit_message_caption(caption=result_text, parse_mode="Markdown", reply_markup=keyboard)
+        except:
+            await query.message.reply_text(result_text, parse_mode="Markdown", reply_markup=keyboard)
 
     elif data == "tt_next":
-        try: await query.message.delete()
-        except: pass
+        try:
+            await query.message.delete()
+        except:
+            pass
         await send_test_text_message(query, context, update=update)
 
-    # --- ЛОГИКА ОСТАЛЬНЫХ РАЗДЕЛОВ (Твои Задачи и Правила) ---
+    # --- ЗАДАЧИ НА ХОД ---
     elif data == "menu_puzzles":
         context.user_data["puzzle_index"] = 0
-        try: await query.message.delete()
-        except: pass
+        try:
+            await query.message.delete()
+        except:
+            pass
         await send_puzzle_message(query, context, is_edit=False, update=update)
 
     elif data.startswith("puzzle_ans_"):
@@ -775,21 +782,27 @@ if os.path.exists("doska.jpg"):
                 [InlineKeyboardButton("🔄 Решить ещё раз", callback_data="menu_puzzles")],
                 [InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")]
             ])
-
-        try: await query.edit_message_caption(caption=result_text, parse_mode="Markdown", reply_markup=keyboard)
-        except: await query.message.reply_text(result_text, parse_mode="Markdown", reply_markup=keyboard)
+        try:
+            await query.edit_message_caption(caption=result_text, parse_mode="Markdown", reply_markup=keyboard)
+        except:
+            await query.message.reply_text(result_text, parse_mode="Markdown", reply_markup=keyboard)
         context.user_data["last_is_photo"] = True
 
     elif data == "puzzle_next" or data == "puzzle_prev":
         if data == "puzzle_prev":
             context.user_data["puzzle_index"] = max(0, context.user_data.get("puzzle_index", 1) - 1)
-        try: await query.message.delete()
-        except: pass
+        try:
+            await query.message.delete()
+        except:
+            pass
         await send_puzzle_message(query, context, is_edit=False, update=update)
 
+    # --- ПРАВИЛА ---
     elif data == "menu_rules":
-        try: await query.message.delete()
-        except: pass
+        try:
+            await query.message.delete()
+        except:
+            pass
         markup = InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")]])
         if os.path.exists("doska.jpg"):
             with open("doska.jpg", "rb") as photo:
@@ -799,6 +812,7 @@ if os.path.exists("doska.jpg"):
             await query.message.chat.send_message(RULES_TEXT, parse_mode="Markdown", reply_markup=markup)
             context.user_data["last_is_photo"] = False
 
+    # --- О СЁГИ ---
     elif data == "menu_about":
         is_photo = context.user_data.get("last_is_photo", False)
         context.user_data["last_is_photo"] = False
@@ -806,65 +820,58 @@ if os.path.exists("doska.jpg"):
             "ℹ️ *О сёги (将棋)*\n\n"
             "Сёги — японская стратегическая игра, родственная шахматам.\n\n"
             "📅 *История:*\n"
-            "Игра появилась в Японии около XII века.\n\n"
+            "Игра появилась в Японии около XII века.\n"
+            "Произошла от индийской чатуранги через китайские шахматы сянци.\n\n"
+            "🌏 *Популярность:*\n"
+            "В Японии около 20 миллионов игроков.\n"
+            "Существует профессиональная лига с титулами: Мейдзин, Рюо и др.\n\n"
             "🎌 *Уникальность:*\n"
-            "Главное отличие от шахмат — сброс захваченных фигур. Это делает партии сверхострыми."
+            "Главное отличие от шахмат — сброс захваченных фигур.\n"
+            "Это делает партии более динамичными и сложными."
         )
         markup = InlineKeyboardMarkup([[InlineKeyboardButton("◀️ Назад", callback_data="menu_main")]])
         if is_photo:
-            try: await query.message.delete()
-            except: pass
+            try:
+                await query.message.delete()
+            except:
+                pass
             await query.message.chat.send_message(about_text, parse_mode="Markdown", reply_markup=markup)
         else:
-            try: await query.edit_message_text(about_text, parse_mode="Markdown", reply_markup=markup)
-            except: pass
+            try:
+                await query.edit_message_text(about_text, parse_mode="Markdown", reply_markup=markup)
+            except:
+                await query.message.chat.send_message(about_text, parse_mode="Markdown", reply_markup=markup)
 
-# ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ТЕСТОВ ====================
-
-# Функция отправки Теста 1 (Угадай по фото)
+# ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
 async def send_test_photo_message(query, context, update=None):
     index = context.user_data.get("test_photo_index", 0)
     item = MEMORY_TEST_BY_PHOTO[index]
     total = len(MEMORY_TEST_BY_PHOTO)
-
     text = f"🖼 *Тест на память ({index + 1}/{total})*\n\n{item['question']}"
     keyboard = []
     for i, option in enumerate(item["options"]):
         keyboard.append([InlineKeyboardButton(option, callback_data=f"tp_ans_{i}")])
     keyboard.append([InlineKeyboardButton("🏠 Меню", callback_data="menu_main")])
-
     target_chat = query.message.chat if query else update.message.chat
-
     if os.path.exists(item["image"]):
         await target_chat.send_photo(photo=open(item["image"], "rb"), caption=text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
     else:
         await target_chat.send_message(f"⚠️ Файл {item['image']} не найден.\n\n{text}", parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
     context.user_data["last_is_photo"] = True
 
-
-# Функция отправки Теста 2 (Найди по тексту)
 async def send_test_text_message(query, context, update=None):
     index = context.user_data.get("test_text_index", 0)
     item = MEMORY_TEST_BY_TEXT[index]
     total = len(MEMORY_TEST_BY_TEXT)
-
     target_chat = query.message.chat if query else update.message.chat
-
-    # Создаем медиагруппу (альбом) из 4-х вариантов фигур
     letters = ["A", "B", "C", "D"]
     media_group = []
-    
     for i, img_path in enumerate(item["images"]):
         if os.path.exists(img_path):
             media_group.append(InputMediaPhoto(open(img_path, "rb"), caption=f"Вариант {letters[i]}"))
-    
-    # Сначала отправляем альбом картинок
     if media_group:
         await target_chat.send_media_group(media=media_group)
-
-    # Затем шлем текстовый вопрос с кнопками-буквами под ним
     text = f"📝 *Тест наоборот ({index + 1}/{total})*\n\n{item['question']}"
-    
     keyboard = [
         [
             InlineKeyboardButton("Вариант A", callback_data="tt_ans_A"),
@@ -876,27 +883,22 @@ async def send_test_text_message(query, context, update=None):
         ],
         [InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")]
     ]
-
     await target_chat.send_message(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
     context.user_data["last_is_photo"] = False
-
 
 async def send_quiz_message(query, context, is_edit=True, update=None):
     q_index = context.user_data.get("quiz_index", 0)
     quiz = QUIZZES[q_index]
     total = len(QUIZZES)
     text = f"🧠 *Вопрос {q_index + 1}/{total}*\n\n{quiz['question']}"
-    
     keyboard = []
     for i, option in enumerate(quiz["options"]):
         keyboard.append([InlineKeyboardButton(option, callback_data=f"quiz_ans_{i}")])
-    
     nav_row = []
     if q_index > 0:
         nav_row.append(InlineKeyboardButton("◀️ Назад", callback_data="quiz_prev"))
     nav_row.append(InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main"))
     keyboard.append(nav_row)
-    
     if is_edit and query:
         await query.edit_message_text(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(keyboard))
     else:
@@ -909,24 +911,20 @@ async def send_puzzle_message(query, context, is_edit=True, update=None):
     puzzle = PUZZLES[p_index]
     total = len(PUZZLES)
     text = f"♟ *Задача {p_index + 1}/{total}: {puzzle['title']}*\n\n{puzzle['description']}"
-    
     keyboard = []
     for i, option in enumerate(puzzle["options"]):
         keyboard.append([InlineKeyboardButton(option, callback_data=f"puzzle_ans_{i}")])
-    
     nav_row = []
     if p_index > 0:
         nav_row.append(InlineKeyboardButton("◀️ Назад", callback_data="puzzle_prev"))
     nav_row.append(InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main"))
     keyboard.append(nav_row)
     markup = InlineKeyboardMarkup(keyboard)
-
     target_chat = query.message.chat if query else update.message.chat
-
     if os.path.exists(puzzle["image"]):
         await target_chat.send_photo(photo=open(puzzle["image"], "rb"), caption=text, parse_mode="Markdown", reply_markup=markup)
     else:
-        await target_chat.send_message(f"⚠️ Ошибка: файл {puzzle['image']} не найден.\n\n{text}", parse_mode="Markdown", reply_markup=markup)
+        await target_chat.send_message(f"⚠️ Файл {puzzle['image']} не найден.\n\n{text}", parse_mode="Markdown", reply_markup=markup)
     context.user_data["last_is_photo"] = True
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -951,8 +949,7 @@ def main():
     app.add_handler(CommandHandler("puzzle", puzzle_command))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.COMMAND, unknown))
-    
-    print("Бот успешно запущен и готов к работе!")
+    print("🎌 Бот Сёги запущен! Нажми Ctrl+C для остановки.")
     app.run_polling()
 
 if __name__ == "__main__":

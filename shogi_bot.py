@@ -557,7 +557,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.message.chat.send_message("🎌 *Главное меню*\n\nВыбери раздел:", parse_mode="Markdown", reply_markup=main_menu_keyboard())
             context.user_data["last_is_photo"] = False
 
-    elif data == "menu_pieces":
+  elif data == "menu_pieces":
         is_photo = context.user_data.get("last_is_photo", False)
         context.user_data["last_is_photo"] = False
         if is_photo:
@@ -566,7 +566,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except:
                 pass
             await query.message.chat.send_message("📖 *Фигуры сёги*\n\nВыбери фигуру, чтобы узнать о ней подробнее:", parse_mode="Markdown", reply_markup=pieces_menu_keyboard())
-       else:
+        else:
             try:
                 await query.edit_message_text("📖 *Фигуры сёги*\n\nВыбери фигуру, чтобы узнать о ней подробнее:", parse_mode="Markdown", reply_markup=pieces_menu_keyboard())
             except:
@@ -575,7 +575,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 except:
                     pass
                 await query.message.chat.send_message("📖 *Фигуры сёги*\n\nВыбери фигуру, чтобы узнать о ней подробнее:", parse_mode="Markdown", reply_markup=pieces_menu_keyboard())
-
     elif data.startswith("piece_"):
         key = data.replace("piece_", "")
         piece = PIECES.get(key)

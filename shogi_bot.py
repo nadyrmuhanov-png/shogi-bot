@@ -553,6 +553,14 @@ if os.path.exists("doska.jpg"):
             with open("doska.jpg", "rb") as photo:
                 await query.message.chat.send_photo(photo=photo, caption="🔹 *Главное меню*\n\nВыбери раздел:", parse_mode="Markdown", reply_markup=main_menu_keyboard())
             context.user_data["last_is_photo"] = True
+      else:
+            await query.message.chat.send_message("🔹 *Главное меню*\n\nВыбери раздел:", parse_mode="Markdown", reply_markup=main_menu_keyboard())
+            context.user_data["last_is_photo"] = False
+
+  if os.path.exists("doska.jpg"):
+            with open("doska.jpg", "rb") as photo:
+                await query.message.chat.send_photo(photo=photo, caption="🔹 *Главное меню*\n\nВыбери раздел:", parse_mode="Markdown", reply_markup=main_menu_keyboard())
+            context.user_data["last_is_photo"] = True
         else:
             await query.message.chat.send_message("🔹 *Главное меню*\n\nВыбери раздел:", parse_mode="Markdown", reply_markup=main_menu_keyboard())
             context.user_data["last_is_photo"] = False

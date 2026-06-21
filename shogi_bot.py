@@ -521,6 +521,8 @@ async def test_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def puzzle_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["puzzle_index"] = 0
+    context.user_data["puzzle_score"] = 0
+    context.user_data["puzzle_mistakes"] = []
     await send_puzzle_message(None, context, is_edit=False, update=update)
 
 # ==================== ОБРАБОТЧИК КНОПОК ====================
@@ -870,6 +872,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # --- ЗАДАЧИ НА ХОД ---
     elif data == "menu_puzzles":
         context.user_data["puzzle_index"] = 0
+        context.user_data["puzzle_score"] = 0
+        context.user_data["puzzle_mistakes"] = []
         try:
             await query.message.delete()
         except:
@@ -881,11 +885,16 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         p_index = context.user_data.get("puzzle_index", 0)
         puzzle = PUZZLES[p_index]
         correct = puzzle["answer"]
+        score = context.user_data.get("puzzle_score", 0)
+        mistakes = context.user_data.get("puzzle_mistakes", [])
 
         if chosen == correct:
             result_text = f"✅ *Правильно!*\n\n{puzzle['explanation']}"
+            context.user_data["puzzle_score"] = score + 1
         else:
             result_text = f"❌ *Неверно.*\nПравильный ответ: «{puzzle['options'][correct]}»\n\n{puzzle['explanation']}"
+            mistakes.append({"index": p_index, "chosen": chosen})
+            context.user_data["puzzle_mistakes"] = mistakes
 
         next_index = p_index + 1
         context.user_data["puzzle_index"] = next_index
@@ -896,11 +905,19 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")]
             ])
         else:
-            result_text += "\n\n🏁 *Все задачи решены! Молодец!*"
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔄 Решить ещё раз", callback_data="menu_puzzles")],
-                [InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")]
-            ])
+            final_score = context.user_data.get("puzzle_score", 0)
+            wrong_count = len(context.user_data.get("puzzle_mistakes", []))
+            result_text += (
+                f"\n\n🏁 *Все задачи решены!*\n"
+                f"✅ Правильно: {final_score}\n"
+                f"❌ Ошибок: {wrong_count}"
+            )
+            buttons = [[InlineKeyboardButton("🔄 Решить ещё раз", callback_data="menu_puzzles")]]
+            if wrong_count > 0:
+                buttons.append([InlineKeyboardButton("🔍 Разобрать ошибки", callback_data="puzzle_review")])
+            buttons.append([InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")])
+            keyboard = InlineKeyboardMarkup(buttons)
+
         try:
             await query.edit_message_caption(caption=result_text, parse_mode="Markdown", reply_markup=keyboard)
         except:
@@ -915,6 +932,36 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             pass
         await send_puzzle_message(query, context, is_edit=False, update=update)
+
+    elif data == "puzzle_review":
+        mistakes = context.user_data.get("puzzle_mistakes", [])
+        try:
+            await query.message.delete()
+        except:
+            pass
+        if not mistakes:
+            await query.message.chat.send_message("Ошибок не было! 🎉", reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")]
+            ]))
+        else:
+            text_parts = ["🔍 *Разбор ошибок*\n"]
+            for m in mistakes:
+                puzzle = PUZZLES[m["index"]]
+                text_parts.append(
+                    f"\n♟ {puzzle['title']}\n"
+                    f"Твой ответ: «{puzzle['options'][m['chosen']]}» ❌\n"
+                    f"Правильно: «{puzzle['options'][puzzle['answer']]}» ✅\n"
+                    f"💡 {puzzle['explanation']}\n"
+                )
+            full_text = "\n".join(text_parts)
+            if len(full_text) > 4000:
+                full_text = full_text[:3950] + "\n\n...(сокращено)"
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔄 Решить ещё раз", callback_data="menu_puzzles")],
+                [InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")]
+            ])
+            await query.message.chat.send_message(full_text, parse_mode="Markdown", reply_markup=keyboard)
+        context.user_data["last_is_photo"] = False
 
     # --- ПРАВИЛА ---
     elif data == "menu_rules":

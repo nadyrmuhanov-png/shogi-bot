@@ -198,7 +198,6 @@ MEMORY_TEST_BY_PHOTO = [
 ]
 
 # ==================== ТЕСТ 2: НАЙДИ ПО ТЕКСТУ ====================
-# ==================== ТЕСТ 2: НАЙДИ ПО ТЕКСТУ ====================
 MEMORY_TEST_BY_TEXT = [
     {
         "question": "📝 Как выглядит Король (Osho/Gyoku)? Посмотрите на медиагруппу выше и выберите букву:",
@@ -223,30 +222,6 @@ MEMORY_TEST_BY_TEXT = [
         "images": ["kyo.jpg", "kin.jpg", "gyoku.jpg", "fu.jpg"],
         "correct_letter": "D",
         "explanation": "Верно! Пешка обозначается иероглифом 歩 (шаг)."
-    },
-    {
-        "question": "📝 Как выглядит Слон (Kakugyo)? Посмотрите на медиагруппу выше и выберите букву:",
-        "images": ["kaku.jpg", "gin.jpg", "fu.jpg", "gyoku.jpg"],
-        "correct_letter": "A",
-        "explanation": "Верно! Слон (Kakugyo) — иероглиф 角 означает «угол», у него характерная угловатая форма письма."
-    },
-    {
-        "question": "📝 Как выглядит Золотой генерал (Kinsho)? Посмотрите на медиагруппу выше и выберите букву:",
-        "images": ["kei.jpg", "hisha.jpg", "kyo.jpg", "kin.jpg"],
-        "correct_letter": "D",
-        "explanation": "Верно! Золотой генерал обозначается иероглифом 金 (золото) — широкий и симметричный знак."
-    },
-    {
-        "question": "📝 Как выглядит Серебряный генерал (Ginsho)? Посмотрите на медиагруппу выше и выберите букву:",
-        "images": ["fu.jpg", "gin.jpg", "kin.jpg", "kaku.jpg"],
-        "correct_letter": "B",
-        "explanation": "Верно! Серебряный генерал — иероглиф 銀 (серебро), снизу имеет характерные четыре черты, отличающие его от Золотого."
-    },
-    {
-        "question": "📝 Как выглядит Копьеносец (Kyosha)? Посмотрите на медиагруппу выше и выберите букву:",
-        "images": ["gyoku.jpg", "kei.jpg", "kyo.jpg", "hisha.jpg"],
-        "correct_letter": "C",
-        "explanation": "Верно! Копьеносец — иероглиф 香 (благовоние), узкий и вытянутый знак, как само копьё."
     },
 ]
 
@@ -620,6 +595,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "menu_quiz":
         context.user_data["quiz_index"] = 0
         context.user_data["quiz_score"] = 0
+        context.user_data["quiz_mistakes"] = []
         is_photo = context.user_data.get("last_is_photo", False)
         if is_photo:
             try:
@@ -636,12 +612,15 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         quiz = QUIZZES[q_index]
         correct = quiz["answer"]
         score = context.user_data.get("quiz_score", 0)
+        mistakes = context.user_data.get("quiz_mistakes", [])
 
         if chosen == correct:
             result_text = f"✅ *Верно!*\n\n{quiz['explanation']}"
             context.user_data["quiz_score"] = score + 1
         else:
             result_text = f"❌ *Неверно.*\nТы выбрал: «{quiz['options'][chosen]}»\nПравильный ответ: «{quiz['options'][correct]}»\n\n{quiz['explanation']}"
+            mistakes.append({"q_index": q_index, "chosen": chosen})
+            context.user_data["quiz_mistakes"] = mistakes
 
         next_index = q_index + 1
         context.user_data["quiz_index"] = next_index
@@ -654,17 +633,23 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             final_score = context.user_data.get("quiz_score", 0)
             total = len(QUIZZES)
-            result_text += f"\n\n🏁 *Тест завершён!*\nТвой результат: *{final_score}/{total}*"
+            wrong_count = len(context.user_data.get("quiz_mistakes", []))
+            result_text += (
+                f"\n\n🏁 *Тест завершён!*\n"
+                f"✅ Правильно: {final_score}\n"
+                f"❌ Ошибок: {wrong_count}"
+            )
             if final_score == total:
                 result_text += "\n🏆 Отлично! Ты знаешь сёги!"
             elif final_score >= total * 0.7:
                 result_text += "\n👍 Хороший результат!"
             else:
                 result_text += "\n📖 Рекомендую ещё раз изучить фигуры."
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔄 Пройти ещё раз", callback_data="menu_quiz")],
-                [InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")]
-            ])
+            buttons = [[InlineKeyboardButton("🔄 Пройти ещё раз", callback_data="menu_quiz")]]
+            if wrong_count > 0:
+                buttons.append([InlineKeyboardButton("🔍 Разобрать ошибки", callback_data="quiz_review")])
+            buttons.append([InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")])
+            keyboard = InlineKeyboardMarkup(buttons)
         await query.edit_message_text(result_text, parse_mode="Markdown", reply_markup=keyboard)
         context.user_data["last_is_photo"] = False
 
@@ -675,10 +660,37 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["quiz_index"] = max(0, context.user_data.get("quiz_index", 1) - 1)
         await send_quiz_message(query, context, is_edit=True)
 
+    elif data == "quiz_review":
+        mistakes = context.user_data.get("quiz_mistakes", [])
+        if not mistakes:
+            await query.edit_message_text("Ошибок не было! 🎉", reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")]
+            ]))
+        else:
+            text_parts = ["🔍 *Разбор ошибок*\n"]
+            for m in mistakes:
+                q = QUIZZES[m["q_index"]]
+                text_parts.append(
+                    f"\n❓ {q['question']}\n"
+                    f"Твой ответ: «{q['options'][m['chosen']]}» ❌\n"
+                    f"Правильно: «{q['options'][q['answer']]}» ✅\n"
+                    f"💡 {q['explanation']}\n"
+                )
+            full_text = "\n".join(text_parts)
+            # Telegram limits message length, split if needed
+            if len(full_text) > 4000:
+                full_text = full_text[:3950] + "\n\n...(сокращено)"
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔄 Пройти тест ещё раз", callback_data="menu_quiz")],
+                [InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")]
+            ])
+            await query.edit_message_text(full_text, parse_mode="Markdown", reply_markup=keyboard)
+
     # --- ТЕСТ: УГАДАЙ ПО ФОТО ---
     elif data == "menu_test_photo":
         context.user_data["test_photo_index"] = 0
         context.user_data["test_photo_score"] = 0
+        context.user_data["test_photo_mistakes"] = []
         try:
             await query.message.delete()
         except:
@@ -690,12 +702,15 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         index = context.user_data.get("test_photo_index", 0)
         item = MEMORY_TEST_BY_PHOTO[index]
         score = context.user_data.get("test_photo_score", 0)
+        mistakes = context.user_data.get("test_photo_mistakes", [])
 
         if chosen == item["answer"]:
             result_text = f"✅ *Верно!*\n\n{item['explanation']}"
             context.user_data["test_photo_score"] = score + 1
         else:
             result_text = f"❌ *Неверно.*\nПравильный ответ: «{item['options'][item['answer']]}»\n\n{item['explanation']}"
+            mistakes.append({"index": index, "chosen": chosen})
+            context.user_data["test_photo_mistakes"] = mistakes
 
         next_index = index + 1
         context.user_data["test_photo_index"] = next_index
@@ -707,11 +722,17 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ])
         else:
             final_score = context.user_data.get("test_photo_score", 0)
-            result_text += f"\n\n🏁 *Визуальный тест завершён!*\nВаш результат: *{final_score}/{len(MEMORY_TEST_BY_PHOTO)}*"
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔄 Начать заново", callback_data="menu_test_photo")],
-                [InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")]
-            ])
+            wrong_count = len(context.user_data.get("test_photo_mistakes", []))
+            result_text += (
+                f"\n\n🏁 *Визуальный тест завершён!*\n"
+                f"✅ Правильно: {final_score}\n"
+                f"❌ Ошибок: {wrong_count}"
+            )
+            buttons = [[InlineKeyboardButton("🔄 Начать заново", callback_data="menu_test_photo")]]
+            if wrong_count > 0:
+                buttons.append([InlineKeyboardButton("🔍 Разобрать ошибки", callback_data="tp_review")])
+            buttons.append([InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")])
+            keyboard = InlineKeyboardMarkup(buttons)
         try:
             await query.edit_message_caption(caption=result_text, parse_mode="Markdown", reply_markup=keyboard)
         except:
@@ -724,10 +745,42 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
         await send_test_photo_message(query, context, update=update)
 
+    elif data == "tp_review":
+        mistakes = context.user_data.get("test_photo_mistakes", [])
+        if not mistakes:
+            await query.edit_message_text("Ошибок не было! 🎉", reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")]
+            ]))
+        else:
+            text_parts = ["🔍 *Разбор ошибок*\n"]
+            for m in mistakes:
+                item = MEMORY_TEST_BY_PHOTO[m["index"]]
+                text_parts.append(
+                    f"\n🖼 Фигура: правильно «{item['options'][item['answer']]}»\n"
+                    f"Твой ответ: «{item['options'][m['chosen']]}» ❌\n"
+                    f"💡 {item['explanation']}\n"
+                )
+            full_text = "\n".join(text_parts)
+            if len(full_text) > 4000:
+                full_text = full_text[:3950] + "\n\n...(сокращено)"
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔄 Пройти ещё раз", callback_data="menu_test_photo")],
+                [InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")]
+            ])
+            try:
+                await query.edit_message_caption(caption=full_text, parse_mode="Markdown", reply_markup=keyboard)
+            except:
+                try:
+                    await query.message.delete()
+                except:
+                    pass
+                await query.message.chat.send_message(full_text, parse_mode="Markdown", reply_markup=keyboard)
+
     # --- ТЕСТ: НАЙДИ ПО ТЕКСТУ ---
     elif data == "menu_test_text":
         context.user_data["test_text_index"] = 0
         context.user_data["test_text_score"] = 0
+        context.user_data["test_text_mistakes"] = []
         try:
             await query.message.delete()
         except:
@@ -739,12 +792,15 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         index = context.user_data.get("test_text_index", 0)
         item = MEMORY_TEST_BY_TEXT[index]
         score = context.user_data.get("test_text_score", 0)
+        mistakes = context.user_data.get("test_text_mistakes", [])
 
         if chosen_letter == item["correct_letter"]:
             result_text = f"✅ *Великолепно!*\n\n{item['explanation']}"
             context.user_data["test_text_score"] = score + 1
         else:
             result_text = f"❌ *Ошибочка.*\nПравильный вариант под буквой: *{item['correct_letter']}*\n\n{item['explanation']}"
+            mistakes.append({"index": index, "chosen": chosen_letter})
+            context.user_data["test_text_mistakes"] = mistakes
 
         next_index = index + 1
         context.user_data["test_text_index"] = next_index
@@ -756,11 +812,17 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ])
         else:
             final_score = context.user_data.get("test_text_score", 0)
-            result_text += f"\n\n🏁 *Тест на поиск фигур завершён!*\nВаш результат: *{final_score}/{len(MEMORY_TEST_BY_TEXT)}*"
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔄 Начать заново", callback_data="menu_test_text")],
-                [InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")]
-            ])
+            wrong_count = len(context.user_data.get("test_text_mistakes", []))
+            result_text += (
+                f"\n\n🏁 *Тест на поиск фигур завершён!*\n"
+                f"✅ Правильно: {final_score}\n"
+                f"❌ Ошибок: {wrong_count}"
+            )
+            buttons = [[InlineKeyboardButton("🔄 Начать заново", callback_data="menu_test_text")]]
+            if wrong_count > 0:
+                buttons.append([InlineKeyboardButton("🔍 Разобрать ошибки", callback_data="tt_review")])
+            buttons.append([InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")])
+            keyboard = InlineKeyboardMarkup(buttons)
         try:
             await query.edit_message_caption(caption=result_text, parse_mode="Markdown", reply_markup=keyboard)
         except:
@@ -772,6 +834,38 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             pass
         await send_test_text_message(query, context, update=update)
+
+    elif data == "tt_review":
+        mistakes = context.user_data.get("test_text_mistakes", [])
+        if not mistakes:
+            await query.edit_message_text("Ошибок не было! 🎉", reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")]
+            ]))
+        else:
+            text_parts = ["🔍 *Разбор ошибок*\n"]
+            for m in mistakes:
+                item = MEMORY_TEST_BY_TEXT[m["index"]]
+                text_parts.append(
+                    f"\n📝 {item['question']}\n"
+                    f"Твой ответ: вариант {m['chosen']} ❌\n"
+                    f"Правильно: вариант {item['correct_letter']} ✅\n"
+                    f"💡 {item['explanation']}\n"
+                )
+            full_text = "\n".join(text_parts)
+            if len(full_text) > 4000:
+                full_text = full_text[:3950] + "\n\n...(сокращено)"
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔄 Пройти ещё раз", callback_data="menu_test_text")],
+                [InlineKeyboardButton("🏠 Главное меню", callback_data="menu_main")]
+            ])
+            try:
+                await query.edit_message_text(full_text, parse_mode="Markdown", reply_markup=keyboard)
+            except:
+                try:
+                    await query.message.delete()
+                except:
+                    pass
+                await query.message.chat.send_message(full_text, parse_mode="Markdown", reply_markup=keyboard)
 
     # --- ЗАДАЧИ НА ХОД ---
     elif data == "menu_puzzles":

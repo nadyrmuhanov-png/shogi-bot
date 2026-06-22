@@ -1061,7 +1061,7 @@ async def send_test_text_message(query, context, update=None):
             media_group.append(InputMediaPhoto(open(img_path, "rb"), caption=f"Вариант {letters[i]}"))
     if media_group:
         await target_chat.send_media_group(media=media_group)
-    text = f"📝 *Тест наоборот ({index + 1}/{total})*\n\n{item['question']}"
+    text = f"📝 *Тест: найди по тексту ({index + 1}/{total})*\n\n{item['question']}"
     keyboard = [
         [
             InlineKeyboardButton("Вариант A", callback_data="tt_ans_A"),
